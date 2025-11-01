@@ -1,0 +1,113 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClassZone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Poppins', 'sans-serif'],
+            },
+            keyframes: {
+              'shine': {
+                '0%': { backgroundPosition: '200% 0' },
+                '100%': { backgroundPosition: '-200% 0' },
+              },
+              'sparkle': {
+                '0%, 100%': { opacity: 0 },
+                '50%': { opacity: 1 },
+              },
+              'ring': {
+                '0%': { transform: 'rotate(0deg)' },
+                '5%': { transform: 'rotate(15deg)' },
+                '15%': { transform: 'rotate(-10deg)' },
+                '25%': { transform: 'rotate(8deg)' },
+                '35%': { transform: 'rotate(-5deg)' },
+                '45%': { transform: 'rotate(2deg)' },
+                '50%': { transform: 'rotate(0deg)' },
+                '100%': { transform: 'rotate(0deg)' },
+              },
+            },
+            animation: {
+              shine: 'shine 3s linear infinite',
+              sparkle: 'sparkle 1s ease-in-out infinite',
+              ring: 'ring 1s ease-out',
+            },
+          },
+        },
+      }
+    </script>
+  <style>
+    /* Custom Scrollbar for Firefox */
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: #94a3b8 #e2e8f0; /* thumb track */
+    }
+    html.dark {
+      scrollbar-color: #475569 #1e293b;
+    }
+
+    /* Custom Scrollbar for WebKit browsers (Chrome, Safari, Edge) */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #e2e8f0;
+    }
+    html.dark ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: #94a3b8;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: #64748b;
+    }
+    html.dark ::-webkit-scrollbar-thumb {
+      background-color: #475569;
+    }
+    html.dark ::-webkit-scrollbar-thumb:hover {
+      background-color: #64748b;
+    }
+    
+    /* Utility to hide scrollbars */
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.548.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
+    "tailwind-merge": "https://aistudiocdn.com/tailwind-merge@^3.3.1",
+    "clsx": "https://aistudiocdn.com/clsx@^2.1.1",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^11.3.19"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

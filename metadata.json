@@ -1,0 +1,5 @@
+{
+  "name": "ClassZone",
+  "description": "A modern, private platform for university classes to manage, share, and interact effectively. It includes features like news, document sharing, real-time chat, a memories gallery, and leaderboards, all wrapped in a beautiful, responsive interface.",
+  "requestFramePermissions": []
+}
