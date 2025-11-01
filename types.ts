@@ -1,4 +1,3 @@
-
 import { Icons } from './components/icons';
 
 export enum Role {
@@ -117,6 +116,7 @@ export interface ChatRoom {
   description: string;
   messages: ChatMessage[];
   allowedRoles?: Role[];
+  members?: number[];
 }
 
 export interface Notification {

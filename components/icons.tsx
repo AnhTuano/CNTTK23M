@@ -65,6 +65,10 @@ import {
   Cpu,
   DatabaseZap,
   Timer,
+  Grape,
+  Dog,
+  LampDesk,
+  PlusCircle,
 } from 'lucide-react';
 
 export const Icons = {
@@ -134,4 +138,8 @@ export const Icons = {
   Cpu,
   DatabaseZap,
   Timer,
+  Grape,
+  Dog,
+  LampDesk,
+  PlusCircle,
 };

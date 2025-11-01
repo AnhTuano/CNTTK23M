@@ -15,7 +15,41 @@ interface ChatProps {
     currentUser: User;
 }
 
-const EMOJIS = ['😀', '😂', '❤️', '👍', '🙏', '😭', '🎉', '🤔'];
+const EMOJI_CATEGORIES: Record<string, { icon: keyof typeof Icons; emojis: string[] }> = {
+    'Biểu cảm & Con người': {
+        icon: 'Smile',
+        emojis: [
+            '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃',
+            '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪',
+        ],
+    },
+    'Động vật & Thiên nhiên': {
+        icon: 'Dog',
+        emojis: [
+            '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️',
+            '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🎍', '🎋', '🍃', '🍂', '🍁', '🍄', '🐚', '🌾', '💐', '🌷', '🌹', '🥀', '🌺', '🌸', '🌼', '🌻',
+        ],
+    },
+    'Đồ ăn & Thức uống': {
+        icon: 'Grape',
+        emojis: [
+            '🍇', '🍈', '🍉', '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏', '🍐', '🍑', '🍒', '🍓', '🥝', '🍅', '🥥', '🥑', '🍆', '🥔', '🥕', '🌽', '🌶️', '🥒', '🥬', '🥦', '🧄', '🧅', '🍄',
+            '🍔', '🍟', '🍕', '🌭', '🥪', '🥙', '🌮', '🌯', '🥗', '🥘', '🥫', '🍝', '🍜', '🍲', '🍛', '🍣', '🍱', '🥟', '🍤', '🍙', '🍚', '🍘', '🍥', '🥠', '🥮', '🍢', '🍡',
+            '🍧', '🍨', '🍦', '🥧', '🧁', '🍰', '🎂', '🍮', '🍭', '🍬', '🍫', '🍿', '🍩', '🍪',
+            '☕', '🍵', '🥤', '🧃', '🧉', '🥛', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹', '🍾',
+        ],
+    },
+    'Đối tượng & Biểu tượng': {
+        icon: 'LampDesk',
+        emojis: [
+            '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟',
+            '💯', '🔥', '🎉', '✨', '🚀', '👀', '🧠', '💣', '💤', '💥', '💦', '💨', '💫', '💬', '💭',
+            '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸', '🥅', '🏒', '🏑', '🏏', '🥍', '⛳', '🏹', '🎣', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷', '⛸️', '🥌', '🎿',
+            '💻', '🖥️', '🖱️', '⌨️', '📱', '☎️', '💡', '💰', '👑', '💎',
+        ],
+    },
+};
+
 const RANDOM_REPLIES = [
     'Mình hiểu rồi, cảm ơn bạn nhé!',
     'Tuyệt vời!',
@@ -71,21 +105,34 @@ const ChannelListItem = React.memo<{ room: ChatRoomType, isActive: boolean, isMu
     )
 });
 
+const initialChannelState = {
+    name: '',
+    description: '',
+    icon: 'MessageSquare' as keyof typeof Icons,
+    members: [] as number[],
+};
 
 const Chat: React.FC<ChatProps> = ({ chatRooms, setChatRooms, users, currentUser }) => {
     const { addToast } = useToast();
     
     const availableRooms = useMemo(() => 
-        chatRooms.filter(room => !room.allowedRoles || room.allowedRoles.includes(currentUser.role)), 
-    [chatRooms, currentUser.role]);
+        chatRooms.filter(room => 
+            (!room.allowedRoles && !room.members) || 
+            (room.allowedRoles && room.allowedRoles.includes(currentUser.role)) ||
+            (room.members && room.members.includes(currentUser.id))
+        ), 
+    [chatRooms, currentUser.role, currentUser.id]);
     
     const [activeRoomId, setActiveRoomId] = useState<string | null>(availableRooms[0]?.id || null);
     const [newMessage, setNewMessage] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [typingUser, setTypingUser] = useState<User | null>(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [activeEmojiCategory, setActiveEmojiCategory] = useState(Object.keys(EMOJI_CATEGORIES)[0]);
     const [isMenuOpen, setMenuOpen] = useState(false);
     const [isMembersModalOpen, setMembersModalOpen] = useState(false);
+    const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+    const [newChannelData, setNewChannelData] = useState(initialChannelState);
     const [mutedRooms, setMutedRooms] = useState<string[]>([]);
     
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -96,11 +143,29 @@ const Chat: React.FC<ChatProps> = ({ chatRooms, setChatRooms, users, currentUser
     const activeRoom = useMemo(() => chatRooms.find(r => r.id === activeRoomId), [chatRooms, activeRoomId]);
     const roomMembers = useMemo(() => {
         if (!activeRoom) return [];
+        if (activeRoom.members) {
+            return users.filter(u => activeRoom.members!.includes(u.id));
+        }
         if (activeRoom.allowedRoles) {
-            return users.filter(u => activeRoom.allowedRoles?.includes(u.role));
+            return users.filter(u => activeRoom.allowedRoles!.includes(u.role));
         }
         return users;
     }, [activeRoom, users]);
+
+    const allOtherUsers = useMemo(() => users.filter(u => u.id !== currentUser.id), [users, currentUser.id]);
+    const allOtherUserIds = useMemo(() => allOtherUsers.map(u => u.id), [allOtherUsers]);
+    const allSelected = useMemo(() => 
+        allOtherUserIds.length > 0 && 
+        allOtherUserIds.every(id => newChannelData.members.includes(id)), 
+    [allOtherUserIds, newChannelData.members]);
+    
+    const handleSelectAllMembers = useCallback(() => {
+        if (allSelected) {
+            setNewChannelData(prev => ({ ...prev, members: [] }));
+        } else {
+            setNewChannelData(prev => ({ ...prev, members: allOtherUserIds }));
+        }
+    }, [allSelected, allOtherUserIds]);
 
 
     const scrollToBottom = () => {
@@ -199,12 +264,48 @@ const Chat: React.FC<ChatProps> = ({ chatRooms, setChatRooms, users, currentUser
         setActiveRoomId(roomId);
     }, []);
 
+    const handleMemberSelect = (userId: number) => {
+        setNewChannelData(prev => {
+            const newMembers = prev.members.includes(userId)
+                ? prev.members.filter(id => id !== userId)
+                : [...prev.members, userId];
+            return { ...prev, members: newMembers };
+        });
+    };
+
+    const handleCreateChannel = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newChannelData.name.trim()) {
+            addToast({ title: 'Lỗi', message: 'Tên kênh không được để trống.', type: 'error' });
+            return;
+        }
+
+        const newRoom: ChatRoomType = {
+            id: newChannelData.name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+            name: newChannelData.name,
+            description: newChannelData.description,
+            icon: newChannelData.icon,
+            messages: [],
+            members: [currentUser.id, ...newChannelData.members],
+        };
+
+        setChatRooms(prev => [...prev, newRoom]);
+        addToast({ title: 'Thành công!', message: `Kênh "${newRoom.name}" đã được tạo.`, type: 'success' });
+        setCreateModalOpen(false);
+        setNewChannelData(initialChannelState);
+    };
+
     return (
         <div className="h-[calc(100vh-8rem)] md:grid md:grid-cols-12 gap-6">
             {/* Channel List - Left Column */}
             <div className="hidden md:col-span-4 lg:col-span-3 md:flex flex-col bg-white/30 dark:bg-gray-950/30 rounded-2xl backdrop-blur-lg border border-white/10 shadow-lg">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
                     <h2 className="text-lg font-bold">Kênh Chat</h2>
+                    {currentUser.role === Role.Admin && (
+                        <Button variant="ghost" size="icon" onClick={() => setCreateModalOpen(true)} title="Tạo kênh mới">
+                            <Icons.PlusCircle className="w-5 h-5"/>
+                        </Button>
+                    )}
                 </div>
                 <div className="flex-1 p-2 overflow-y-auto space-y-1">
                     {availableRooms.map(room => (
@@ -292,17 +393,46 @@ const Chat: React.FC<ChatProps> = ({ chatRooms, setChatRooms, users, currentUser
                                 <div ref={emojiPickerRef}>
                                     <AnimatePresence>
                                         {showEmojiPicker && (
-                                            <motion.div 
+                                            <motion.div
                                                 initial={{ opacity: 0, scale: 0.9, y: 10 }}
                                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                                 exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                                                className="absolute bottom-full mb-2 grid grid-cols-4 gap-2 p-2 rounded-lg bg-white dark:bg-gray-700 shadow-lg border border-gray-200 dark:border-gray-600"
+                                                className="absolute bottom-full mb-2 w-80 origin-bottom-left rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden"
                                             >
-                                                {EMOJIS.map(emoji => (
-                                                    <button key={emoji} type="button" onClick={() => addEmoji(emoji)} className="text-xl p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                                                        {emoji}
-                                                    </button>
-                                                ))}
+                                                <div className="p-2 h-64 overflow-y-auto">
+                                                    <div className="grid grid-cols-8 gap-x-1 gap-y-2">
+                                                        {EMOJI_CATEGORIES[activeEmojiCategory].emojis.map(emoji => (
+                                                            <button
+                                                                key={emoji}
+                                                                type="button"
+                                                                onClick={() => addEmoji(emoji)}
+                                                                className="text-2xl p-0.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
+                                                            >
+                                                                {emoji}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-around p-1 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 rounded-b-lg">
+                                                    {Object.entries(EMOJI_CATEGORIES).map(([category, { icon }]) => {
+                                                        const IconComponent = Icons[icon];
+                                                        return (
+                                                            <button
+                                                                key={category}
+                                                                type="button"
+                                                                onClick={() => setActiveEmojiCategory(category)}
+                                                                className={cn(
+                                                                    "p-2 rounded-md transition-colors text-gray-500",
+                                                                    activeEmojiCategory === category ? 'bg-blue-500/20 text-blue-500' : 'hover:bg-gray-200 dark:hover:bg-gray-700'
+                                                                )}
+                                                                aria-label={category}
+                                                                title={category}
+                                                            >
+                                                                <IconComponent className="w-5 h-5" />
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
@@ -344,6 +474,51 @@ const Chat: React.FC<ChatProps> = ({ chatRooms, setChatRooms, users, currentUser
                         </div>
                     ))}
                 </div>
+            </Modal>
+            
+             <Modal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} title="Tạo kênh chat mới">
+                <form onSubmit={handleCreateChannel} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Tên kênh</label>
+                        <input value={newChannelData.name} onChange={(e) => setNewChannelData(p => ({ ...p, name: e.target.value }))} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Mô tả kênh</label>
+                        <textarea value={newChannelData.description} onChange={(e) => setNewChannelData(p => ({ ...p, description: e.target.value }))} rows={2} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium mb-1">Icon kênh</label>
+                        <select value={newChannelData.icon} onChange={(e) => setNewChannelData(p => ({ ...p, icon: e.target.value as keyof typeof Icons }))} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           {['MessageSquare', 'Users', 'Hash', 'Book', 'Award', 'Shield'].map(icon => <option key={icon} value={icon}>{icon}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="block text-sm font-medium">Thêm thành viên</label>
+                            <Button type="button" variant="ghost" size="sm" onClick={handleSelectAllMembers} className="text-xs px-2 h-7">
+                                {allSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                            </Button>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto border rounded-lg p-2 dark:border-gray-700 space-y-2">
+                            {allOtherUsers.map(user => (
+                                <label key={user.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800/50 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={newChannelData.members.includes(user.id)}
+                                        onChange={() => handleMemberSelect(user.id)}
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
+                                    <span>{user.name}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                     <div className="flex justify-end gap-2 pt-4 border-t dark:border-gray-700">
+                        <Button type="button" variant="secondary" onClick={() => setCreateModalOpen(false)}>Hủy</Button>
+                        <Button type="submit">Tạo kênh</Button>
+                    </div>
+                </form>
             </Modal>
         </div>
     );
