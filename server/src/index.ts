@@ -53,7 +53,7 @@ setupSocketIO(io);
 const allowedOrigins = [
   process.env.CLIENT_URL || 'http://localhost:3000',
   'http://localhost:3000',
-  'https://cnttk-23-m-frontend.vercel.app'
+  'https://cnttk23m-frontend.vercel.app'
 ].filter(Boolean);
 
 // Middleware
