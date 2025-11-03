@@ -58,7 +58,7 @@ export class BadgeAutoAwardService {
                 }
               });
               newBadgesCount++;
-              console.log(`✓ Awarded badge "${badge.name}" to user ${user.name} (ID: ${userId})`);
+              // console.log(`✓ Awarded badge "${badge.name}" to user ${user.name} (ID: ${userId})`);
               broadcastBadgeAwarded(user.id, badge);
             } catch (error: any) {
               if (error.code !== 'P2002') {
@@ -105,7 +105,7 @@ export class BadgeAutoAwardService {
               }
             });
             newBadgesCount++;
-            console.log(`✓ Awarded badge "${badge.name}" to user ${user.name} (ID: ${userId})`);
+            // console.log(`✓ Awarded badge "${badge.name}" to user ${user.name} (ID: ${userId})`);
             
             // Broadcast realtime update
             broadcastBadgeAwarded(user.id, badge);
@@ -128,7 +128,7 @@ export class BadgeAutoAwardService {
   // Check and award badges for all users
   static async checkAndAwardAllUsers(): Promise<{ usersChecked: number; badgesAwarded: number }> {
     try {
-      console.log('🔄 Starting auto-award process for all users...');
+      // console.log('🔄 Starting auto-award process for all users...');
       
       const users = await prisma.user.findMany({
         select: { id: true }
@@ -141,7 +141,7 @@ export class BadgeAutoAwardService {
         totalBadgesAwarded += newBadges;
       }
 
-      console.log(`✅ Auto-award complete: Checked ${users.length} users, awarded ${totalBadgesAwarded} badges`);
+      // console.log(`✅ Auto-award complete: Checked ${users.length} users, awarded ${totalBadgesAwarded} badges`);
 
       return {
         usersChecked: users.length,
@@ -163,6 +163,6 @@ export class BadgeAutoAwardService {
       this.checkAndAwardAllUsers();
     }, intervalMinutes * 60 * 1000);
 
-    console.log(`🤖 Badge auto-award scheduler started (runs every ${intervalMinutes} minutes)`);
+    // console.log(`🤖 Badge auto-award scheduler started (runs every ${intervalMinutes} minutes)`);
   }
 }

@@ -42,25 +42,25 @@ export const uploadDocument = async (req: Request, res: Response) => {
     const userRole = (req as any).user?.role;
     const file = req.file;
 
-    console.log('📤 Upload document request:', { title, subject, type, hasFile: !!file, link, userRole });
+    // console.log('📤 Upload document request:', { title, subject, type, hasFile: !!file, link, userRole });
 
     let documentLink = link;
 
     // If file is uploaded, upload to Supabase
     if (file) {
-      console.log('📁 Uploading file to Supabase:', file.originalname);
+      // console.log('📁 Uploading file to Supabase:', file.originalname);
       const { url } = await uploadToSupabase(
         file.buffer,
         'documents',
         file.originalname
       );
       documentLink = url;
-      console.log('✅ File uploaded to:', url);
+      // console.log('✅ File uploaded to:', url);
     }
 
     // If no file and no link, return error
     if (!documentLink) {
-      console.log('❌ No file or link provided');
+      // console.log('❌ No file or link provided');
       return res.status(400).json({ error: 'Either file or link is required' });
     }
 
@@ -68,7 +68,7 @@ export const uploadDocument = async (req: Request, res: Response) => {
     const bypassRoles = ['Admin', 'LopTruong', 'BiThu'];
     const status = bypassRoles.includes(userRole) ? 'DaDuyet' : 'ChoDuyet';
     
-    console.log('💾 Creating document in database with status:', status);
+    // console.log('💾 Creating document in database with status:', status);
     const document = await prisma.document.create({
       data: {
         title,
@@ -90,7 +90,7 @@ export const uploadDocument = async (req: Request, res: Response) => {
       }
     });
 
-    console.log('✅ Document created:', document.id);
+    // console.log('✅ Document created:', document.id);
 
     // Broadcast new document
     broadcastDocumentUpdate('create', document);

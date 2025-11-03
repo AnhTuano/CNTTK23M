@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import fs from 'fs';
@@ -15,26 +16,26 @@ export const createBackup = async (req: Request, res: Response) => {
     const userId = (req as any).user?.id;
     const userName = (req as any).user?.name;
 
-    console.log('🔄 Starting backup creation...');
+    // console.log('🔄 Starting backup creation...');
 
     // Fetch all data from database with proper error handling
     let users, posts, documents, memories, chatRooms, chatMessages, notifications, badges, reports, websiteConfig;
 
     try {
-      console.log('📊 Fetching users...');
+      // console.log('📊 Fetching users...');
       users = await prisma.user.findMany({
         include: {
           badges: true,
         }
       });
-      console.log(`✓ Found ${users.length} users`);
+      // console.log(`✓ Found ${users.length} users`);
     } catch (err) {
       console.error('Error fetching users:', err);
       throw err;
     }
 
     try {
-      console.log('📊 Fetching posts...');
+      // console.log('📊 Fetching posts...');
       posts = await prisma.post.findMany({
         include: {
           comments: true,
@@ -50,14 +51,14 @@ export const createBackup = async (req: Request, res: Response) => {
           }
         }
       });
-      console.log(`✓ Found ${posts.length} posts`);
+      // console.log(`✓ Found ${posts.length} posts`);
     } catch (err) {
       console.error('Error fetching posts:', err);
       throw err;
     }
 
     try {
-      console.log('📊 Fetching documents...');
+      // console.log('📊 Fetching documents...');
       documents = await prisma.document.findMany({
         include: {
           uploader: {
@@ -69,14 +70,14 @@ export const createBackup = async (req: Request, res: Response) => {
           }
         }
       });
-      console.log(`✓ Found ${documents.length} documents`);
+      // console.log(`✓ Found ${documents.length} documents`);
     } catch (err) {
       console.error('Error fetching documents:', err);
       throw err;
     }
 
     try {
-      console.log('📊 Fetching memories...');
+      // console.log('📊 Fetching memories...');
       memories = await prisma.memory.findMany({
         include: {
           uploader: {
@@ -89,55 +90,55 @@ export const createBackup = async (req: Request, res: Response) => {
           reactions: true
         }
       });
-      console.log(`✓ Found ${memories.length} memories`);
+      // console.log(`✓ Found ${memories.length} memories`);
     } catch (err) {
       console.error('Error fetching memories:', err);
       throw err;
     }
 
     try {
-      console.log('📊 Fetching chat rooms...');
+      // console.log('📊 Fetching chat rooms...');
       chatRooms = await prisma.chatRoom.findMany({
         include: {
           members: true,
           allowedRoles: true
         }
       });
-      console.log(`✓ Found ${chatRooms.length} chat rooms`);
+      // console.log(`✓ Found ${chatRooms.length} chat rooms`);
     } catch (err) {
       console.error('Error fetching chat rooms:', err);
       throw err;
     }
 
     try {
-      console.log('📊 Fetching chat messages...');
+      // console.log('📊 Fetching chat messages...');
       chatMessages = await prisma.chatMessage.findMany();
-      console.log(`✓ Found ${chatMessages.length} messages`);
+      // console.log(`✓ Found ${chatMessages.length} messages`);
     } catch (err) {
       console.error('Error fetching chat messages:', err);
       throw err;
     }
 
     try {
-      console.log('📊 Fetching notifications...');
+      // console.log('📊 Fetching notifications...');
       notifications = await prisma.notification.findMany();
-      console.log(`✓ Found ${notifications.length} notifications`);
+      // console.log(`✓ Found ${notifications.length} notifications`);
     } catch (err) {
       console.error('Error fetching notifications:', err);
       throw err;
     }
 
     try {
-      console.log('📊 Fetching badges...');
+      // console.log('📊 Fetching badges...');
       badges = await prisma.badge.findMany();
-      console.log(`✓ Found ${badges.length} badges`);
+      // console.log(`✓ Found ${badges.length} badges`);
     } catch (err) {
       console.error('Error fetching badges:', err);
       throw err;
     }
 
     try {
-      console.log('📊 Fetching reports...');
+      // console.log('📊 Fetching reports...');
       reports = await prisma.report.findMany({
         include: {
           reporter: {
@@ -150,16 +151,16 @@ export const createBackup = async (req: Request, res: Response) => {
           post: true
         }
       });
-      console.log(`✓ Found ${reports.length} reports`);
+      // console.log(`✓ Found ${reports.length} reports`);
     } catch (err) {
       console.error('Error fetching reports:', err);
       throw err;
     }
 
     try {
-      console.log('📊 Fetching website config...');
+      // console.log('📊 Fetching website config...');
       websiteConfig = await prisma.websiteConfig.findFirst();
-      console.log(`✓ Found config`);
+      // console.log(`✓ Found config`);
     } catch (err) {
       console.error('Error fetching website config:', err);
       throw err;
@@ -199,11 +200,11 @@ export const createBackup = async (req: Request, res: Response) => {
     const filename = `backup_${timestamp}.json`;
     const filepath = path.join(BACKUP_DIR, filename);
     
-    console.log('💾 Writing backup file...');
+    // console.log('💾 Writing backup file...');
     fs.writeFileSync(filepath, JSON.stringify(backupData, null, 2));
 
     // Log backup creation
-    console.log(`✅ Backup created: ${filename} by ${userName}`);
+    // console.log(`✅ Backup created: ${filename} by ${userName}`);
 
     res.json({
       success: true,
@@ -302,7 +303,7 @@ export const restoreBackup = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid backup data' });
     }
 
-    console.log(`⚠️  Starting restore by ${userName}...`);
+    // console.log(`⚠️  Starting restore by ${userName}...`);
 
     // Begin transaction
     await prisma.$transaction(async (tx) => {
@@ -625,7 +626,7 @@ export const restoreBackup = async (req: Request, res: Response) => {
       }
     });
 
-    console.log(`✅ Restore completed successfully by ${userName}`);
+    // console.log(`✅ Restore completed successfully by ${userName}`);
 
     res.json({
       success: true,

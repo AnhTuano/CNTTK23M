@@ -52,13 +52,13 @@ export const register = async (req: Request, res: Response) => {
     const validRoles = ['Admin', 'LopTruong', 'LopPhoHocTap', 'LopPhoDoiSong', 'BiThu', 'PhoBiThu', 'ThanhVien'];
     const userRole = role && validRoles.includes(role) ? role : 'ThanhVien';
 
-    console.log('Creating user with data:', {
-      email: normalizedEmail,
-      name: name.trim(),
-      major: major?.trim() || '',
-      role: userRole,
-      mustChangePassword: mustChangePassword === true
-    });
+    // console.log('Creating user with data:', {
+    //   email: normalizedEmail,
+    //   name: name.trim(),
+    //   major: major?.trim() || '',
+    //   role: userRole,
+    //   mustChangePassword: mustChangePassword === true
+    // });
 
     // Create user
     const user = await prisma.user.create({

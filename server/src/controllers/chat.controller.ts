@@ -184,7 +184,7 @@ export const deleteRoom = async (req: Request, res: Response) => {
       where: { id }
     });
 
-    console.log(`✅ Admin deleted chat room: ${room.name} (${id})`);
+    // console.log(`✅ Admin deleted chat room: ${room.name} (${id})`);
     res.json({ message: 'Chat room deleted successfully' });
   } catch (error) {
     console.error('Delete room error:', error);
@@ -237,7 +237,7 @@ export const clearRoomHistory = async (req: Request, res: Response) => {
       period === '1month' ? '1 tháng gần đây' :
       'toàn bộ';
 
-    console.log(`✅ Admin cleared chat history (${periodText}) in room: ${room.name} (${id}) - ${result.count} messages deleted`);
+    // console.log(`✅ Admin cleared chat history (${periodText}) in room: ${room.name} (${id}) - ${result.count} messages deleted`);
     
     // Broadcast to all users in realtime
     broadcastChatHistoryCleared(id, period as string, result.count);

@@ -122,7 +122,7 @@ export const setupSocketIO = (io: Server) => {
   });
 
   io.on('connection', (socket: AuthenticatedSocket) => {
-    console.log(`✅ User ${socket.userId} connected`);
+    // console.log(`✅ User ${socket.userId} connected`);
 
     // Track user as online
     if (socket.userId) {
@@ -172,7 +172,7 @@ export const setupSocketIO = (io: Server) => {
 
         socket.join(`room:${roomId}`);
         socket.emit('joined:room', { roomId });
-        console.log(`User ${socket.userId} joined room ${roomId}`);
+        // console.log(`User ${socket.userId} joined room ${roomId}`);
       } catch (error) {
         console.error('Error joining room:', error);
         socket.emit('error', { message: 'Failed to join room' });
@@ -183,7 +183,7 @@ export const setupSocketIO = (io: Server) => {
     socket.on('leave:room', (roomId: string) => {
       socket.leave(`room:${roomId}`);
       socket.emit('left:room', { roomId });
-      console.log(`User ${socket.userId} left room ${roomId}`);
+      // console.log(`User ${socket.userId} left room ${roomId}`);
     });
 
     // Send message
@@ -240,7 +240,7 @@ export const setupSocketIO = (io: Server) => {
 
     // Disconnect
     socket.on('disconnect', () => {
-      console.log(`❌ User ${socket.userId} disconnected`);
+      // console.log(`❌ User ${socket.userId} disconnected`);
       
       // Remove user from online tracking
       if (socket.userId && onlineUsers.has(socket.userId)) {

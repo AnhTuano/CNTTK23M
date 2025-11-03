@@ -75,7 +75,7 @@ export const uploadMemory = async (req: Request, res: Response) => {
       }
     });
 
-    console.log('✅ Memory created:', memory.id, 'Status:', status);
+    // console.log('✅ Memory created:', memory.id, 'Status:', status);
     
     // Broadcast real-time update
     broadcastMemoryUpdate('create', memory);

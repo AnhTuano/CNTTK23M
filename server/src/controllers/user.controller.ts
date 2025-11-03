@@ -169,14 +169,14 @@ export const updateUserRole = async (req: Request, res: Response) => {
       return res.status(400).json({ error: `Invalid role: ${role}. Valid roles: ${validRoles.join(', ')}` });
     }
 
-    console.log(`Updating user ${id} to role: ${role}`);
+    // console.log(`Updating user ${id} to role: ${role}`);
     
     const user = await prisma.user.update({
       where: { id: parseInt(id) },
       data: { role }
     });
 
-    console.log('User updated successfully:', user);
+    // console.log('User updated successfully:', user);
 
     const { password, ...userWithoutPassword } = user;
     
@@ -227,7 +227,7 @@ export const toggleLockUser = async (req: Request, res: Response) => {
       );
     }
 
-    console.log(`✅ User ${updatedUser.id} lock status: ${updatedUser.locked}`);
+    // console.log(`✅ User ${updatedUser.id} lock status: ${updatedUser.locked}`);
     res.json(userWithoutPassword); // Return user object directly
   } catch (error) {
     res.status(500).json({ error: 'Failed to toggle user lock' });

@@ -85,7 +85,7 @@ export const updateUserPoints = async (userId: number): Promise<void> => {
 
     broadcastUserUpdate('update', userForBroadcast);
 
-    console.log(`✅ Updated points for user ${userId}: ${calculatedPoints} points`);
+    // console.log(`✅ Updated points for user ${userId}: ${calculatedPoints} points`);
   } catch (error) {
     console.error(`❌ Failed to update points for user ${userId}:`, error);
     throw error;
@@ -101,13 +101,13 @@ export const updateAllUserPoints = async (): Promise<void> => {
       select: { id: true }
     });
 
-    console.log(`🔄 Updating points for ${users.length} users...`);
+    // console.log(`🔄 Updating points for ${users.length} users...`);
 
     for (const user of users) {
       await updateUserPoints(user.id);
     }
 
-    console.log(`✅ Finished updating points for all users`);
+    // console.log(`✅ Finished updating points for all users`);
   } catch (error) {
     console.error('❌ Failed to update all user points:', error);
     throw error;
