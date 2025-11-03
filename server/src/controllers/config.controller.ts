@@ -5,6 +5,7 @@ import { broadcastConfigUpdate } from '../socket';
 // Get website config
 export const getConfig = async (req: Request, res: Response) => {
   try {
+    // Try to get config from database
     const config = await prisma.websiteConfig.findFirst();
     
     if (!config) {
@@ -12,13 +13,27 @@ export const getConfig = async (req: Request, res: Response) => {
       return res.json({
         isMaintenanceMode: false,
         bannerText: '',
-        bannerIsActive: false
+        bannerIsActive: false,
+        className: 'CNTTK23M',
+        slogan: 'Lớp chúng ta - Mái nhà chung',
+        websiteName: 'ClassZone',
+        websiteTitle: 'ClassZone - Trang web lớp học'
       });
     }
 
     res.json(config);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch config' });
+    console.error('Failed to fetch config:', error);
+    // Return default config if database error
+    res.json({
+      isMaintenanceMode: false,
+      bannerText: '',
+      bannerIsActive: false,
+      className: 'CNTTK23M',
+      slogan: 'Lớp chúng ta - Mái nhà chung',
+      websiteName: 'ClassZone',
+      websiteTitle: 'ClassZone - Trang web lớp học'
+    });
   }
 };
 
