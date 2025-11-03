@@ -129,37 +129,54 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 const PORT = process.env.PORT || 5000;
 
-httpServer.listen(PORT, async () => {
-  // console.log(`🚀 Server running on http://localhost:${PORT}`);
-  // console.log(`🔌 Socket.IO ready for connections`);
-  // console.log(`📝 Environment: ${process.env.NODE_ENV}`);
+// For Vercel serverless deployment, export app directly
+if (process.env.VERCEL) {
+  // Don't start server on Vercel, just export the app
+  // console.log('🔷 Running on Vercel Serverless');
   
-  // Sync all user points on startup
-  // console.log('💯 Syncing all user points...');
-  try {
-    await updateAllUserPoints();
-    // console.log('✅ All user points synced successfully');
-  } catch (error) {
-    console.error('❌ Failed to sync user points:', error);
-  }
-  
-  // Initial badge check on startup
-  // console.log('🎖️  Running initial badge check...');
-  BadgeAutoAwardService.checkAndAwardAllUsers().catch(err => 
-    console.error('Failed initial badge check:', err)
-  );
-  
-  // Auto-check every 2 minutes for users who meet requirements
-  const INTERVAL_MINUTES = 2;
-  setInterval(() => {
-    // console.log('🔄 Running periodic badge check...');
+  // Run initialization tasks without blocking
+  (async () => {
+    try {
+      await updateAllUserPoints();
+      await BadgeAutoAwardService.checkAndAwardAllUsers();
+    } catch (error) {
+      console.error('Initialization error:', error);
+    }
+  })();
+} else {
+  // For local development, start the server normally
+  httpServer.listen(PORT, async () => {
+    // console.log(`🚀 Server running on http://localhost:${PORT}`);
+    // console.log(`🔌 Socket.IO ready for connections`);
+    // console.log(`📝 Environment: ${process.env.NODE_ENV}`);
+    
+    // Sync all user points on startup
+    // console.log('💯 Syncing all user points...');
+    try {
+      await updateAllUserPoints();
+      // console.log('✅ All user points synced successfully');
+    } catch (error) {
+      console.error('❌ Failed to sync user points:', error);
+    }
+    
+    // Initial badge check on startup
+    // console.log('🎖️  Running initial badge check...');
     BadgeAutoAwardService.checkAndAwardAllUsers().catch(err => 
-      console.error('Failed periodic badge check:', err)
+      console.error('Failed initial badge check:', err)
     );
-  }, INTERVAL_MINUTES * 60 * 1000);
-  
-  // console.log(`🤖 Badge auto-award: Realtime + every ${INTERVAL_MINUTES} minutes`);
-  // console.log(`💯 Points auto-update: Realtime on every activity`);
-});
+    
+    // Auto-check every 2 minutes for users who meet requirements
+    const INTERVAL_MINUTES = 2;
+    setInterval(() => {
+      // console.log('🔄 Running periodic badge check...');
+      BadgeAutoAwardService.checkAndAwardAllUsers().catch(err => 
+        console.error('Failed periodic badge check:', err)
+      );
+    }, INTERVAL_MINUTES * 60 * 1000);
+    
+    // console.log(`🤖 Badge auto-award: Realtime + every ${INTERVAL_MINUTES} minutes`);
+    // console.log(`💯 Points auto-update: Realtime on every activity`);
+  });
+}
 
 export default app;
