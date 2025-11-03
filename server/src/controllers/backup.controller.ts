@@ -3,16 +3,25 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
-// Create backup directory if not exists
-const BACKUP_DIR = path.join(__dirname, '../../backups');
-if (!fs.existsSync(BACKUP_DIR)) {
-  fs.mkdirSync(BACKUP_DIR, { recursive: true });
-}
+// Use temp directory for serverless environments (Vercel)
+const BACKUP_DIR = process.env.VERCEL 
+  ? path.join(os.tmpdir(), 'backups')
+  : path.join(__dirname, '../../backups');
+
+// Lazy initialization: create backup directory only when needed
+const ensureBackupDir = () => {
+  if (!fs.existsSync(BACKUP_DIR)) {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  }
+};
 
 // Create a full database backup
 export const createBackup = async (req: Request, res: Response) => {
   try {
+    ensureBackupDir(); // Create directory only when creating backup
+    
     const userId = (req as any).user?.id;
     const userName = (req as any).user?.name;
 
@@ -254,6 +263,8 @@ export const downloadBackup = async (req: Request, res: Response) => {
 // List all backups
 export const listBackups = async (req: Request, res: Response) => {
   try {
+    ensureBackupDir(); // Create directory if not exists
+    
     const files = fs.readdirSync(BACKUP_DIR);
     const backups = files
       .filter(f => f.endsWith('.json') && f.startsWith('backup_'))
