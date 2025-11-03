@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { BadgeCategory } from '@prisma/client';
 
 // Get all badges
 export const getAllBadges = async (req: Request, res: Response) => {
@@ -145,7 +146,7 @@ export const seedDefaultBadges = async (req: Request, res: Response) => {
         icon: 'Award',
         color: '#fb923c', // orange-400
         requiredPoints: 0,
-        category: 'first_post'
+        category: 'first_post' as BadgeCategory
       },
       {
         id: 'PROLIFIC_POSTER',
@@ -154,7 +155,7 @@ export const seedDefaultBadges = async (req: Request, res: Response) => {
         icon: 'Newspaper',
         color: '#60a5fa', // blue-400
         requiredPoints: 100,
-        category: 'posts'
+        category: 'posts' as BadgeCategory
       },
       {
         id: 'LIBRARIAN',
@@ -163,7 +164,7 @@ export const seedDefaultBadges = async (req: Request, res: Response) => {
         icon: 'BookOpenCheck',
         color: '#4ade80', // green-400
         requiredPoints: 150,
-        category: 'documents'
+        category: 'documents' as BadgeCategory
       },
       {
         id: 'COMMUNICATOR',
@@ -172,7 +173,7 @@ export const seedDefaultBadges = async (req: Request, res: Response) => {
         icon: 'MessageCircleMore',
         color: '#c084fc', // purple-400
         requiredPoints: 250,
-        category: 'comments'
+        category: 'comments' as BadgeCategory
       },
       {
         id: 'TOP_CONTRIBUTOR',
@@ -181,7 +182,7 @@ export const seedDefaultBadges = async (req: Request, res: Response) => {
         icon: 'Sparkles',
         color: '#facc15', // yellow-400
         requiredPoints: 0,
-        category: 'special'
+        category: 'special' as BadgeCategory
       }
     ];
 

@@ -160,7 +160,7 @@ export const approveMemory = async (req: Request, res: Response) => {
       memory.uploader.id,
       'memory',
       'Kỷ niệm được duyệt',
-      `Kỷ niệm "${memory.caption || 'Không có tiêu đề'}" của bạn đã được phê duyệt!`
+      `Kỷ niệm của bạn đã được phê duyệt!`
     );
 
     // Notify all users about new memory
