@@ -37,7 +37,7 @@ const MemoryCard = React.memo<{ memory: MemoryType; currentUser: User; onClick: 
             <div className="absolute bottom-0 left-0 p-4 text-white w-full translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
                 <p className="text-xs font-semibold">{memory.semester}</p>
                 <div className="flex items-center gap-4 mt-2">
-                    {Object.entries(memory.reactions).map(([emoji, count]) => (
+                    {memory.reactions && Object.entries(memory.reactions).map(([emoji, count]) => (
                         <div key={emoji} className="flex items-center gap-1 text-xs bg-black/30 backdrop-blur-sm px-2 py-1 rounded-full">
                             <span>{emoji}</span>
                             <span>{count}</span>
@@ -76,7 +76,7 @@ const Memories: React.FC<MemoriesProps> = ({ memories, setMemories, users, curre
     const uniqueSemesters = useMemo(() => ['Tất cả', ...Array.from(new Set(memories.map(m => m.semester))).sort()], [memories]);
     
     const filteredMemories = useMemo(() => {
-        const approvedMemories = memories.filter(m => m.status === 'đã duyệt');
+        const approvedMemories = memories.filter(m => m.status === 'đã duyệt' || m.status === 'DaDuyet');
         if (activeSemester === 'Tất cả') return approvedMemories;
         return approvedMemories.filter(m => m.semester === activeSemester);
     }, [memories, activeSemester]);
@@ -94,38 +94,93 @@ const Memories: React.FC<MemoriesProps> = ({ memories, setMemories, users, curre
     }, [filteredMemories, layout]);
 
 
-    const handleAddMemory = useCallback((e: React.FormEvent) => {
+    const handleAddMemory = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMemory.url.trim() || !newMemory.semester.trim()) return;
 
-        const canBypassModeration = [Role.Admin, Role.LopTruong, Role.BiThu].includes(currentUser.role);
+        try {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                addToast({ title: 'Lỗi!', message: 'Bạn cần đăng nhập lại', type: 'error' });
+                return;
+            }
 
-        const memoryToAdd: MemoryType = {
-            id: Date.now(),
-            type: 'image',
-            url: newMemory.url,
-            thumbnail: newMemory.url, // For simplicity, thumbnail is same as full image
-            semester: newMemory.semester,
-            uploaderId: currentUser.id,
-            reactions: {},
-            status: canBypassModeration ? 'đã duyệt' : 'chờ duyệt',
-        };
-        setMemories(mems => [memoryToAdd, ...mems]);
-        setAddModalOpen(false);
-        setNewMemory({ url: '', semester: '' });
+            const response = await fetch('http://localhost:5000/api/memories', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    url: newMemory.url,
+                    semester: newMemory.semester
+                })
+            });
 
-        if (canBypassModeration) {
-            addToast({ title: 'Thành công!', message: 'Kỷ niệm của bạn đã được đăng.', type: 'success' });
-        } else {
-            addToast({ title: 'Thành công!', message: 'Kỷ niệm của bạn đã được gửi và đang chờ duyệt.', type: 'info' });
+            if (!response.ok) {
+                throw new Error('Failed to create memory');
+            }
+
+            const savedMemory = await response.json();
+            console.log('✅ Memory created:', savedMemory);
+
+            // Optimistic update - add to local state
+            const memoryToAdd: MemoryType = {
+                id: savedMemory.id,
+                type: 'image',
+                url: savedMemory.url,
+                thumbnail: savedMemory.url,
+                semester: savedMemory.semester,
+                uploaderId: savedMemory.uploaderId,
+                reactions: {},
+                status: savedMemory.status === 'DaDuyet' ? 'đã duyệt' : 'chờ duyệt',
+            };
+            
+            setMemories(mems => [memoryToAdd, ...mems]);
+            setAddModalOpen(false);
+            setNewMemory({ url: '', semester: '' });
+
+            const canBypassModeration = [Role.Admin, Role.LopTruong, Role.BiThu].includes(currentUser.role);
+            if (canBypassModeration) {
+                addToast({ title: 'Thành công!', message: 'Kỷ niệm của bạn đã được đăng.', type: 'success' });
+            } else {
+                addToast({ title: 'Thành công!', message: 'Kỷ niệm của bạn đã được gửi và đang chờ duyệt.', type: 'info' });
+            }
+        } catch (error) {
+            console.error('❌ Failed to create memory:', error);
+            addToast({ title: 'Lỗi!', message: 'Không thể tạo kỷ niệm', type: 'error' });
         }
     }, [newMemory, currentUser, setMemories, addToast]);
 
-    const handleConfirmDelete = useCallback(() => {
+    const handleConfirmDelete = useCallback(async () => {
         if (!deletingMemory) return;
-        setMemories(prev => prev.filter(m => m.id !== deletingMemory!.id));
-        addToast({ title: 'Đã xóa!', message: 'Kỷ niệm đã được xóa.', type: 'info' });
-        setDeletingMemory(null);
+        
+        try {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                addToast({ title: 'Lỗi!', message: 'Bạn cần đăng nhập lại', type: 'error' });
+                return;
+            }
+
+            const response = await fetch(`http://localhost:5000/api/memories/${deletingMemory.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete memory');
+            }
+
+            // Optimistic update - remove from local state
+            setMemories(prev => prev.filter(m => m.id !== deletingMemory.id));
+            addToast({ title: 'Đã xóa!', message: 'Kỷ niệm đã được xóa.', type: 'info' });
+            setDeletingMemory(null);
+        } catch (error) {
+            console.error('❌ Failed to delete memory:', error);
+            addToast({ title: 'Lỗi!', message: 'Không thể xóa kỷ niệm', type: 'error' });
+        }
     }, [deletingMemory, setMemories, addToast]);
 
     const handleOpenViewer = useCallback((memory: MemoryType) => {

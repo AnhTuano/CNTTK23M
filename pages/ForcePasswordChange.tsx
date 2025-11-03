@@ -16,12 +16,12 @@ const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ onPasswordCha
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
-        if (newPassword.length < 8) {
-            setError('Mật khẩu phải có ít nhất 8 ký tự.');
+        if (newPassword.length < 6) {
+            setError('Mật khẩu phải có ít nhất 6 ký tự.');
             return;
         }
         if (newPassword !== confirmPassword) {
@@ -30,8 +30,44 @@ const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ onPasswordCha
         }
 
         setIsLoading(true);
-        // Simulate API call to change password
-        setTimeout(() => {
+        
+        try {
+            const API_URL = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL 
+                ? import.meta.env.VITE_API_URL 
+                : 'http://localhost:5000/api';
+            
+            const token = localStorage.getItem('accessToken');
+            
+            if (!token) {
+                setError('Vui lòng đăng nhập lại.');
+                setIsLoading(false);
+                return;
+            }
+
+            const response = await fetch(`${API_URL}/auth/change-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    newPassword: newPassword
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to change password');
+            }
+
+            // Update user in localStorage to clear mustChangePassword flag
+            const savedUser = localStorage.getItem('user');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
+                user.mustChangePassword = false;
+                localStorage.setItem('user', JSON.stringify(user));
+            }
+
             setIsLoading(false);
             addToast({
                 title: 'Thành công!',
@@ -39,7 +75,11 @@ const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ onPasswordCha
                 type: 'success',
             });
             onPasswordChanged();
-        }, 1000);
+        } catch (error: any) {
+            console.error('Change password error:', error);
+            setIsLoading(false);
+            setError(error.message || 'Không thể đổi mật khẩu. Vui lòng thử lại.');
+        }
     };
 
     return (

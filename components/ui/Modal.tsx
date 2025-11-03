@@ -32,21 +32,21 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className={cn(
               "relative",
-              size === 'default' ? 'w-full max-w-3xl' : 'w-full h-full'
+              size === 'default' ? 'w-full max-w-3xl max-h-[90vh]' : 'w-full h-full'
             )}
             onClick={(e) => e.stopPropagation()}
           >
             <div className={cn(
-              "border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg w-full h-full flex flex-col",
+              "border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg w-full h-full flex flex-col overflow-hidden",
               size === 'default' ? 'rounded-2xl' : 'rounded-none'
             )}>
-                <div className="flex-shrink-0 flex items-center justify-between mb-4 p-6 pb-0">
-                    <h2 className="text-xl font-bold">{title}</h2>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                <div className="flex-shrink-0 flex items-center justify-between mb-1 sm:mb-2 p-2 sm:p-4 pb-0">
+                    <h2 className="text-base sm:text-lg font-bold truncate pr-2">{title}</h2>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 flex-shrink-0">
                         <Icons.X className="w-5 h-5" />
                     </button>
                 </div>
-                <div className="flex-grow overflow-y-auto p-6 pt-4">{children}</div>
+                <div className="flex-grow overflow-y-auto p-2 sm:p-4 pt-1 sm:pt-2">{children}</div>
             </div>
           </motion.div>
         </motion.div>

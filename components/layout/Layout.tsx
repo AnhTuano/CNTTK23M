@@ -27,20 +27,20 @@ interface LayoutProps {
 const GlobalBanner: React.FC<{ websiteConfig: WebsiteConfig }> = ({ websiteConfig }) => {
   const [isVisible, setIsVisible] = useState(true);
   
-  if (!websiteConfig.banner.isActive || !isVisible) {
+  if (!websiteConfig?.bannerIsActive || !isVisible) {
     return null;
   }
 
   const bannerStyles = {
-    info: 'bg-blue-500',
-    warning: 'bg-yellow-500',
-    critical: 'bg-red-500',
+    Info: 'bg-blue-500',
+    Warning: 'bg-yellow-500',
+    Critical: 'bg-red-500',
   };
   const Icon = {
-    info: Icons.Bell,
-    warning: Icons.AlertTriangle,
-    critical: Icons.AlertCircle,
-  }[websiteConfig.banner.type] || Icons.Bell;
+    Info: Icons.Bell,
+    Warning: Icons.AlertTriangle,
+    Critical: Icons.AlertCircle,
+  }[websiteConfig.bannerType] || Icons.Bell;
 
 
   return (
@@ -52,11 +52,11 @@ const GlobalBanner: React.FC<{ websiteConfig: WebsiteConfig }> = ({ websiteConfi
           exit={{ y: -100, opacity: 0 }}
           className={cn(
             "relative z-50 text-white text-sm font-medium px-4 py-2 flex items-center justify-center gap-3",
-            bannerStyles[websiteConfig.banner.type]
+            bannerStyles[websiteConfig.bannerType]
           )}
         >
             <Icon className="w-5 h-5 flex-shrink-0" />
-            <p className="text-center">{websiteConfig.banner.text}</p>
+            <p className="text-center">{websiteConfig.bannerText}</p>
             <button onClick={() => setIsVisible(false)} className="absolute right-2 p-1 rounded-md hover:bg-white/20">
               <Icons.X className="w-5 h-5"/>
             </button>

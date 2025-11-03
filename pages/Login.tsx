@@ -11,19 +11,62 @@ interface LoginProps {
     websiteConfig: WebsiteConfig;
 }
 
+// Get API URL from env or use default
+const getApiUrl = () => {
+    if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+    }
+    return 'http://localhost:5000/api';
+};
+
+const API_URL = getApiUrl();
+
 const Login: React.FC<LoginProps> = ({ onLogin, websiteConfig }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false);
+        setError('');
+
+        try {
+            const response = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                // Check if it's a locked account error with contact URL
+                if (data.contactUrl) {
+                    const confirmOpen = window.confirm(`${data.error}\n\nBấm OK để liên hệ quản trị viên qua Facebook.`);
+                    if (confirmOpen) {
+                        window.open(data.contactUrl, '_blank');
+                    }
+                    throw new Error(data.error);
+                }
+                throw new Error(data.error || 'Đăng nhập thất bại');
+            }
+
+            // Save tokens to localStorage
+            localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('refreshToken', data.refreshToken);
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            // Call onLogin callback
             onLogin();
-        }, 1500);
+        } catch (err: any) {
+            setError(err.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -62,6 +105,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, websiteConfig }) => {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {error && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm"
+                            >
+                                {error}
+                            </motion.div>
+                        )}
                         <div className="space-y-2">
                             <label htmlFor="email" className="text-sm font-medium">Email</label>
                             <input

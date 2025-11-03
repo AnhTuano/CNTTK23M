@@ -2,13 +2,16 @@ import { Icons } from './components/icons';
 
 export enum Role {
   Admin = 'Admin',
-  LopTruong = 'Lớp trưởng',
-  LopPhoHocTap = 'Lớp phó học tập',
-  LopPhoDoiSong = 'Lớp phó đời sống',
-  BiThu = 'Bí thư',
-  PhoBiThu = 'Phó bí thư',
-  ThanhVien = 'Thành viên',
+  LopTruong = 'LopTruong',
+  LopPhoHocTap = 'LopPhoHocTap',
+  LopPhoDoiSong = 'LopPhoDoiSong',
+  BiThu = 'BiThu',
+  PhoBiThu = 'PhoBiThu',
+  UyVien = 'UyVien',
+  ThanhVien = 'ThanhVien',
 }
+
+export type BadgeCategory = 'all' | 'posts' | 'documents' | 'comments';
 
 export interface Badge {
   id: string;
@@ -16,6 +19,8 @@ export interface Badge {
   description: string;
   icon: keyof typeof Icons;
   color: string;
+  requiredPoints?: number;
+  category?: BadgeCategory;
 }
 
 export interface User {
@@ -28,11 +33,17 @@ export interface User {
   major: string;
   joinDate: string;
   birthday?: string;
-  contact: {
+  // Backend fields
+  email?: string;
+  phone?: string;
+  facebookUrl?: string;
+  githubUrl?: string;
+  // Legacy mock fields (optional for backward compatibility)
+  contact?: {
     email: string;
     phone?: string;
   };
-  socials: {
+  socials?: {
     facebook?: string;
     github?: string;
   };
@@ -40,7 +51,7 @@ export interface User {
   documents: number;
   comments: number;
   points: number;
-  badges: Badge[];
+  badges?: Badge[];
   locked: boolean;
   mustChangePassword?: boolean;
 }
@@ -88,7 +99,7 @@ export interface Document {
   type: 'Bài giảng' | 'Đề' | 'Ghi chú' | 'Khác';
   link: string;
   timestamp: string;
-  status: 'đã duyệt' | 'chờ duyệt';
+  status: 'DaDuyet' | 'ChoDuyet' | 'đã duyệt' | 'chờ duyệt'; // Support both backend enum and frontend display
 }
 
 export interface Memory {
@@ -99,7 +110,7 @@ export interface Memory {
     semester: string;
     uploaderId: number;
     reactions: Record<string, number>;
-    status: 'đã duyệt' | 'chờ duyệt';
+    status: 'DaDuyet' | 'ChoDuyet' | 'đã duyệt' | 'chờ duyệt'; // Support both backend enum and frontend display
 }
 
 export interface ChatMessage {
@@ -121,10 +132,12 @@ export interface ChatRoom {
 
 export interface Notification {
   id: number;
-  type: 'post' | 'comment' | 'vote' | 'system';
+  userId: number;
+  type: 'post' | 'comment' | 'vote' | 'system' | 'document' | 'memory';
+  title: string;
   text: string;
-  timestamp: string;
   read: boolean;
+  createdAt: string;
   link?: string;
 }
 
@@ -148,12 +161,17 @@ export interface BannerConfig {
 }
 
 export interface WebsiteConfig {
+  id?: number;
   className: string;
   slogan: string;
   coverImage: string;
   websiteName: string;
   websiteTitle: string;
   isMaintenanceMode: boolean;
-  allowedPostRoles: Role[];
-  banner: BannerConfig;
+  allowedPostRoles?: Role[];
+  postCategories?: string[];
+  bannerText: string;
+  bannerType: 'Info' | 'Warning' | 'Critical';
+  bannerIsActive: boolean;
+  updatedAt?: Date | string;
 }

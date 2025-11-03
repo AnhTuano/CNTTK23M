@@ -2,6 +2,7 @@ import {
   Home,
   Newspaper,
   Book,
+  FileText,
   MessageSquare,
   Camera,
   User,
@@ -69,12 +70,16 @@ import {
   Dog,
   LampDesk,
   PlusCircle,
+  Save,
+  RotateCw,
+  Info,
 } from 'lucide-react';
 
 export const Icons = {
   Home,
   Newspaper,
   Book,
+  FileText,
   MessageSquare,
   Camera,
   User,
@@ -142,4 +147,7 @@ export const Icons = {
   Dog,
   LampDesk,
   PlusCircle,
+  Save,
+  RotateCw,
+  Info,
 };

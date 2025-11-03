@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ROLE_COLORS, BADGES } from '../constants';
+import { ROLE_COLORS, ROLE_NAMES, BADGES } from '../constants';
 import { User } from '../types';
 import { Icons } from '../components/icons';
 import { cn } from '../lib/utils';
@@ -7,9 +7,10 @@ import { Card } from '../components/ui/Card';
 
 interface LeaderboardProps {
     users: User[];
+    onViewProfile?: (user: User) => void;
 }
 
-const TopRankCard = React.memo<{ user: User; rank: number; className?: string }>(({ user, rank, className }) => {
+const TopRankCard = React.memo<{ user: User; rank: number; className?: string; onClick?: () => void }>(({ user, rank, className, onClick }) => {
   const rankConfig = {
     1: { iconColor: 'text-yellow-400', gradient: 'from-yellow-400/20 to-yellow-600/20', shadow: 'shadow-yellow-400/50' },
     2: { iconColor: 'text-gray-300', gradient: 'from-gray-300/20 to-gray-500/20', shadow: 'shadow-gray-300/20' },
@@ -17,7 +18,7 @@ const TopRankCard = React.memo<{ user: User; rank: number; className?: string }>
   }[rank] || { iconColor: 'text-gray-500', gradient: 'from-gray-500/10 to-gray-700/10', shadow: 'shadow-gray-500/20' };
 
   return (
-    <Card className={cn('relative flex flex-col items-center justify-center p-6 text-center transition-all duration-300 group hover:shadow-2xl', rankConfig.gradient, rank === 1 ? 'lg:-translate-y-6' : '', className)}>
+    <Card className={cn('relative flex flex-col items-center justify-center p-6 text-center transition-all duration-300 group hover:shadow-2xl cursor-pointer', rankConfig.gradient, rank === 1 ? 'lg:-translate-y-6' : '', className)} onClick={onClick}>
       <Icons.Crown className={cn('w-10 h-10 absolute -top-5', rankConfig.iconColor)} />
       <span className="absolute top-2 right-2 text-2xl font-bold opacity-20">{`#${rank}`}</span>
       <img src={user.avatar} alt={user.name} className="w-24 h-24 rounded-full mb-4 border-4 border-white/50" />
@@ -32,14 +33,19 @@ const TopRankCard = React.memo<{ user: User; rank: number; className?: string }>
           </div>
         )}
       </h3>
-      <p className="text-sm" style={{ color: ROLE_COLORS[user.role].primary }}>{user.role}</p>
+      <span
+        className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold text-white"
+        style={{ backgroundColor: ROLE_COLORS[user.role].primary }}
+      >
+        {user.role ? (ROLE_NAMES[user.role] || user.role) : 'Thành viên'}
+      </span>
       <p className="text-2xl font-bold mt-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">{user.points} <span className="text-sm">điểm</span></p>
       <div className="absolute inset-0 group-hover:bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shine opacity-0 group-hover:opacity-100 transition-opacity"></div>
     </Card>
   );
 });
 
-const Leaderboard: React.FC<LeaderboardProps> = ({ users }) => {
+const Leaderboard: React.FC<LeaderboardProps> = ({ users, onViewProfile }) => {
     const sortedUsers = useMemo(() => 
         [...users].sort((a, b) => b.points - a.points), 
     [users]);
@@ -55,20 +61,29 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ users }) => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-end">
-                {top3[0] && <TopRankCard user={top3[0]} rank={1} className="lg:order-2" />}
-                {top3[1] && <TopRankCard user={top3[1]} rank={2} className="lg:order-1" />}
-                {top3[2] && <TopRankCard user={top3[2]} rank={3} className="lg:order-3" />}
+                {top3[0] && <TopRankCard user={top3[0]} rank={1} className="lg:order-2" onClick={() => onViewProfile?.(top3[0])} />}
+                {top3[1] && <TopRankCard user={top3[1]} rank={2} className="lg:order-1" onClick={() => onViewProfile?.(top3[1])} />}
+                {top3[2] && <TopRankCard user={top3[2]} rank={3} className="lg:order-3" onClick={() => onViewProfile?.(top3[2])} />}
             </div>
             
             <Card>
                 <div className="space-y-2">
                     {rest.map((user, index) => (
-                        <div key={user.id} className="flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors">
+                        <div 
+                            key={user.id} 
+                            className="flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                            onClick={() => onViewProfile?.(user)}
+                        >
                             <span className="w-8 text-center font-bold text-gray-500">{index + 4}</span>
                             <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full mx-4" />
                             <div className="flex-grow">
                                 <p className="font-semibold">{user.name}</p>
-                                <p className="text-xs" style={{ color: ROLE_COLORS[user.role].primary }}>{user.role}</p>
+                                <span
+                                    className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold text-white"
+                                    style={{ backgroundColor: ROLE_COLORS[user.role].primary }}
+                                >
+                                    {user.role ? (ROLE_NAMES[user.role] || user.role) : 'Thành viên'}
+                                </span>
                             </div>
                             <p className="font-bold text-lg">{user.points}</p>
                         </div>

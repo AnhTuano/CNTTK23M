@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { Card } from '../components/ui/Card';
 import { Icons } from '../components/icons';
-import { ROLE_COLORS } from '../constants';
+import { ROLE_COLORS, ROLE_NAMES } from '../constants';
 import { Post, Document, User, Memory, WebsiteConfig } from '../types';
 import { cn } from '../lib/utils';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -118,15 +118,15 @@ const Dashboard: React.FC<DashboardProps> = ({ websiteConfig, posts, documents, 
     }
 
     const latestPost = posts.find(p => p.pinned) || posts[0];
-    const author = users.find(u => u.id === latestPost.authorId);
+    const author = latestPost ? users.find(u => u.id === latestPost.authorId) : null;
     const featuredDoc = documents[0];
-    const uploader = users.find(u => u.id === featuredDoc.uploaderId);
-    const topUser = [...users].sort((a,b) => b.points - a.points)[0];
+    const uploader = featuredDoc ? users.find(u => u.id === featuredDoc.uploaderId) : null;
+    const topUser = users.length > 0 ? [...users].sort((a,b) => b.points - a.points)[0] : null;
 
     return (
         <div className="space-y-8">
             {/* Header */}
-            <div className="relative rounded-2xl overflow-hidden p-8 md:p-12 min-h-[250px] flex flex-col justify-end items-start text-white bg-cover bg-center" style={{ backgroundImage: `url('${websiteConfig.coverImage}')` }}>
+            <div className="relative z-0 rounded-2xl overflow-hidden p-8 md:p-12 min-h-[250px] flex flex-col justify-end items-start text-white bg-cover bg-center" style={{ backgroundImage: `url('${websiteConfig.coverImage}')` }}>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
                 <div className="relative z-10">
                     <h1 className="text-4xl md:text-5xl font-bold drop-shadow-lg">{websiteConfig.className}</h1>
@@ -147,31 +147,49 @@ const Dashboard: React.FC<DashboardProps> = ({ websiteConfig, posts, documents, 
                 {/* Latest Announcement */}
                 <div className="lg:col-span-2">
                     <h2 className="text-2xl font-semibold mb-4">Thông báo mới nhất</h2>
-                    <Card>
-                        {author && (
-                            <div className="flex items-center gap-3 mb-4">
-                                <img src={author.avatar} alt={author.name} className="w-10 h-10 rounded-full" />
-                                <div>
-                                    <p className="font-semibold">{author.name}</p>
-                                    <p className={`text-xs ${ROLE_COLORS[author.role].text}`}>{author.role}</p>
+                    {latestPost ? (
+                        <Card>
+                            {author && (
+                                <div className="flex items-center gap-3 mb-4">
+                                    <img src={author.avatar} alt={author.name} className="w-10 h-10 rounded-full" />
+                                    <div>
+                                        <p className="font-semibold">{author.name}</p>
+                                        <span
+                                            className="mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold text-white"
+                                            style={{ backgroundColor: ROLE_COLORS[author.role].primary }}
+                                        >
+                                            {ROLE_NAMES[author.role] || author.role}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                        <h3 className="text-xl font-bold text-blue-400 mb-2">{latestPost.title}</h3>
-                        <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">{latestPost.content}</p>
-                        <span className="text-xs text-gray-400">{latestPost.timestamp}</span>
-                    </Card>
+                            )}
+                            <h3 className="text-xl font-bold text-blue-400 mb-2">{latestPost.title}</h3>
+                            <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3">{latestPost.content}</p>
+                            <span className="text-xs text-gray-400">{latestPost.timestamp}</span>
+                        </Card>
+                    ) : (
+                        <Card>
+                            <p className="text-center text-gray-500 py-8">Chưa có bài đăng nào</p>
+                        </Card>
+                    )}
                 </div>
 
                 {/* Right Column */}
                 <div className="space-y-8">
                     <div>
                         <h2 className="text-2xl font-semibold mb-4">Tài liệu nổi bật</h2>
-                        <Card>
-                            <Icons.Book className="w-8 h-8 text-purple-400 mb-3"/>
-                            <h4 className="font-semibold">{featuredDoc.title}</h4>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">bởi {uploader?.name}</p>
-                        </Card>
+                        {featuredDoc ? (
+                            <Card>
+                                <Icons.Book className="w-8 h-8 text-purple-400 mb-3"/>
+                                <h4 className="font-semibold">{featuredDoc.title}</h4>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">bởi {uploader?.name}</p>
+                            </Card>
+                        ) : (
+                            <Card>
+                                <Icons.Book className="w-8 h-8 text-purple-400 mb-3"/>
+                                <p className="text-sm text-gray-500">Chưa có tài liệu nào</p>
+                            </Card>
+                        )}
                     </div>
                     <div>
                         <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2"><Icons.Cake className="w-6 h-6 text-pink-500" />Sinh nhật sắp tới</h2>
@@ -179,13 +197,20 @@ const Dashboard: React.FC<DashboardProps> = ({ websiteConfig, posts, documents, 
                     </div>
                     <div>
                         <h2 className="text-2xl font-semibold mb-4">Thành tích tuần</h2>
-                        <Card className="flex items-center gap-4 bg-gradient-to-r from-yellow-400/20 to-orange-500/20">
-                            <Icons.Trophy className="w-10 h-10 text-yellow-400"/>
-                            <div>
-                                <p className="font-bold text-lg">{topUser.name}</p>
-                                <p className="text-sm text-yellow-500">{topUser.points} điểm</p>
-                            </div>
-                        </Card>
+                        {topUser ? (
+                            <Card className="flex items-center gap-4 bg-gradient-to-r from-yellow-400/20 to-orange-500/20">
+                                <Icons.Trophy className="w-10 h-10 text-yellow-400"/>
+                                <div>
+                                    <p className="font-bold text-lg">{topUser.name}</p>
+                                    <p className="text-sm text-yellow-500">{topUser.points} điểm</p>
+                                </div>
+                            </Card>
+                        ) : (
+                            <Card>
+                                <Icons.Trophy className="w-10 h-10 text-yellow-400 mb-3"/>
+                                <p className="text-sm text-gray-500">Chưa có dữ liệu</p>
+                            </Card>
+                        )}
                     </div>
                 </div>
             </div>

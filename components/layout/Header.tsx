@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Icons } from '../icons';
 import { ThemeToggle } from '../ThemeToggle';
 import { cn } from '../../lib/utils';
-import { ROLE_COLORS } from '../../constants';
+import { ROLE_COLORS, ROLE_NAMES } from '../../constants';
 import { Button } from '../ui/Button';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Notification, User } from '../../types';
@@ -27,6 +27,8 @@ const NotificationItem = React.memo<{ notification: Notification; onClick: () =>
         comment: <Icons.MessageSquare className="w-5 h-5 text-green-500" />,
         vote: <Icons.ArrowUpCircle className="w-5 h-5 text-orange-500" />,
         system: <Icons.Sparkles className="w-5 h-5 text-purple-500" />,
+        document: <Icons.Book className="w-5 h-5 text-indigo-500" />,
+        memory: <Icons.Heart className="w-5 h-5 text-pink-500" />,
     };
 
     return (
@@ -37,15 +39,21 @@ const NotificationItem = React.memo<{ notification: Notification; onClick: () =>
             {!notification.read && <div className="absolute left-2 top-1/2 -translate-y-1/2 w-2 h-2 bg-blue-500 rounded-full"></div>}
             <div className="flex-shrink-0 mt-1 ml-4">{iconMap[notification.type]}</div>
             <div className="flex-1">
-                <p className="text-sm text-gray-700 dark:text-gray-200">{notification.text}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{notification.timestamp}</p>
+                <p className="font-medium text-sm text-gray-800 dark:text-gray-100">{notification.title}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{notification.text}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {new Date(notification.createdAt).toLocaleString('vi-VN')}
+                </p>
             </div>
         </div>
     );
 });
 
 export const Header: React.FC<HeaderProps> = ({ setSidebarOpen, pageTitle, notifications, setNotifications, currentUser, setActivePage, onLogout, animateBell, setAnimateBell, onSearchClick }) => {
-  const userRoleColor = ROLE_COLORS[currentUser.role];
+  const userRoleColor = currentUser.role && ROLE_COLORS[currentUser.role] 
+    ? ROLE_COLORS[currentUser.role] 
+    : { primary: '#8E8E93', text: 'text-gray-500', border: 'border-gray-500' }; // Fallback to ThanhVien color
+  
   const [isNotificationsOpen, setNotificationsOpen] = useState(false);
   const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -124,7 +132,7 @@ export const Header: React.FC<HeaderProps> = ({ setSidebarOpen, pageTitle, notif
                   initial={{ opacity: 0, scale: 0.95, y: -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  className="absolute right-0 mt-2 w-80 origin-top-right rounded-2xl shadow-lg bg-white dark:bg-gray-900 ring-1 ring-black ring-opacity-5 z-20"
+                  className="absolute right-0 mt-2 w-80 origin-top-right rounded-2xl shadow-lg bg-white dark:bg-gray-900 ring-1 ring-black ring-opacity-5 z-[100]"
                 >
                     <div className="p-3 flex justify-between items-center border-b dark:border-gray-700/50">
                         <h3 className="font-semibold text-sm">Thông báo</h3>
@@ -156,7 +164,7 @@ export const Header: React.FC<HeaderProps> = ({ setSidebarOpen, pageTitle, notif
         <div className="relative" ref={profileMenuRef}>
             <button onClick={() => setProfileMenuOpen(prev => !prev)} className="flex items-center gap-3 rounded-full p-0.5 transition-colors hover:bg-gray-200 dark:hover:bg-gray-800">
                 <img
-                    src={currentUser.avatar}
+                    src={currentUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`}
                     alt={currentUser.name}
                     className={cn('h-9 w-9 rounded-full ring-2 ring-offset-2 ring-offset-gray-100 dark:ring-offset-gray-900', userRoleColor.border.replace('border-', 'ring-'))}
                 />
@@ -166,7 +174,7 @@ export const Header: React.FC<HeaderProps> = ({ setSidebarOpen, pageTitle, notif
                         className="mt-1 inline-block px-1.5 py-0.5 rounded-full text-[10px] font-semibold text-white"
                         style={{ backgroundColor: userRoleColor.primary }}
                     >
-                        {currentUser.role}
+                        {currentUser.role ? (ROLE_NAMES[currentUser.role] || currentUser.role) : 'Thành viên'}
                     </span>
                 </div>
             </button>

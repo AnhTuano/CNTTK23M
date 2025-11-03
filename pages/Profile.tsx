@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Icons } from '../components/icons';
-import { ROLE_COLORS } from '../constants';
+import { ROLE_COLORS, ROLE_NAMES } from '../constants';
 import { cn } from '../lib/utils';
 import { Badge as BadgeType, User, Post, Document as Doc } from '../types';
 import { Modal } from '../components/ui/Modal';
@@ -16,14 +16,15 @@ interface ProfileProps {
     posts: Post[];
     documents: Doc[];
     setActivePage: (page: any) => void;
+    badges: BadgeType[];
 }
 
 const BadgeIcon = React.memo<{badge: BadgeType}>(({badge}) => {
-    const IconComponent = Icons[badge.icon];
+    const IconComponent = Icons[badge.icon as keyof typeof Icons] || Icons.Award;
     return (
         <div className="group relative flex flex-col items-center">
             <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-full">
-                {IconComponent && <IconComponent className={cn('w-7 h-7', badge.color)} />}
+                <IconComponent className={cn('w-7 h-7', badge.color)} />
             </div>
             <div className="absolute bottom-full mb-2 w-max max-w-xs text-center z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                 <p className="font-bold">{badge.name}</p>
@@ -60,9 +61,29 @@ const fileToDataUri = (file: File) => new Promise<string>((resolve, reject) => {
     reader.readAsDataURL(file);
 })
 
-const Profile: React.FC<ProfileProps> = ({ user, updateUser, posts, documents, setActivePage }) => {
+// Calculate points based on badge category
+const calculateCategoryPoints = (
+    category: string | undefined,
+    postsCount: number,
+    docsCount: number,
+    commentsCount: number
+): number => {
+    switch (category) {
+        case 'posts':
+            return postsCount * 10;
+        case 'documents':
+            return docsCount * 15;
+        case 'comments':
+            return commentsCount * 5;
+        case 'all':
+        default:
+            return (postsCount * 10) + (docsCount * 15) + (commentsCount * 5);
+    }
+};
+
+const Profile: React.FC<ProfileProps> = ({ user, updateUser, posts, documents, setActivePage, badges }) => {
     const { addToast } = useToast();
-    const [activeTab, setActiveTab] = useState<'posts' | 'documents' | 'comments'>('posts');
+    const [activeTab, setActiveTab] = useState<'posts' | 'documents' | 'comments' | 'achievements'>('posts');
     const [isEditModalOpen, setEditModalOpen] = useState(false);
     const [formData, setFormData] = useState<User>(user);
 
@@ -70,24 +91,75 @@ const Profile: React.FC<ProfileProps> = ({ user, updateUser, posts, documents, s
     const coverInputRef = useRef<HTMLInputElement>(null);
 
     const userRoleColor = ROLE_COLORS[user.role];
-    const userPosts = useMemo(() => posts.filter(p => p.authorId === user.id), [user.id, posts]);
-    const userDocs = useMemo(() => documents.filter(d => d.uploaderId === user.id), [user.id, documents]);
-    const userComments = useMemo(() => posts.flatMap(p => 
+    const userPosts = useMemo(() => posts?.filter(p => p.authorId === user.id) || [], [user.id, posts]);
+    const userDocs = useMemo(() => documents?.filter(d => d.uploaderId === user.id) || [], [user.id, documents]);
+    const userComments = useMemo(() => posts?.flatMap(p => 
         p.comments
-         .filter(c => c.authorId === user.id)
+         ?.filter(c => c.authorId === user.id)
          .map(c => ({ ...c, postTitle: p.title }))
-    ), [user.id, posts]);
+    ) || [], [user.id, posts]);
 
     const handleOpenEditModal = () => {
         setFormData(user);
         setEditModalOpen(true);
     };
 
-    const handleSaveProfile = (e: React.FormEvent) => {
+    const handleSaveProfile = async (e: React.FormEvent) => {
         e.preventDefault();
-        updateUser(formData);
-        setEditModalOpen(false);
-        addToast({ title: 'Thành công!', message: 'Hồ sơ đã được cập nhật.', type: 'success' });
+        
+        try {
+            const API_URL = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL 
+                ? import.meta.env.VITE_API_URL 
+                : 'http://localhost:5000/api';
+            
+            const token = localStorage.getItem('accessToken');
+            
+            if (!token) {
+                addToast({ title: 'Lỗi', message: 'Vui lòng đăng nhập lại.', type: 'error' });
+                return;
+            }
+
+            const response = await fetch(`${API_URL}/users/${user.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: formData.name,
+                    bio: formData.bio,
+                    major: formData.major,
+                    birthday: formData.birthday,
+                    phone: formData.phone,
+                    facebookUrl: formData.facebookUrl,
+                    githubUrl: formData.githubUrl,
+                    avatar: formData.avatar,
+                    coverImage: formData.coverImage
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update profile');
+            }
+
+            const updatedUser = await response.json();
+            
+            // Update local state
+            updateUser({ ...user, ...updatedUser });
+            
+            // Update localStorage
+            const savedUser = localStorage.getItem('user');
+            if (savedUser) {
+                const parsedUser = JSON.parse(savedUser);
+                localStorage.setItem('user', JSON.stringify({ ...parsedUser, ...updatedUser }));
+            }
+            
+            setEditModalOpen(false);
+            addToast({ title: 'Thành công!', message: 'Hồ sơ đã được cập nhật.', type: 'success' });
+        } catch (error) {
+            console.error('Update profile error:', error);
+            addToast({ title: 'Lỗi', message: 'Không thể cập nhật hồ sơ. Vui lòng thử lại.', type: 'error' });
+        }
     };
 
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -142,7 +214,7 @@ const Profile: React.FC<ProfileProps> = ({ user, updateUser, posts, documents, s
                                 className="mt-2 inline-block px-3 py-1 text-sm font-semibold text-white rounded-full"
                                 style={{ backgroundColor: userRoleColor.primary, boxShadow: `0 4px 14px 0 ${userRoleColor.primary}70` }}
                             >
-                                {user.role}
+                                {user.role ? (ROLE_NAMES[user.role] || user.role) : 'Thành viên'}
                             </span>
                         </div>
                         <Button className="mt-4 sm:mt-0 sm:ml-auto" onClick={handleOpenEditModal}>
@@ -167,10 +239,10 @@ const Profile: React.FC<ProfileProps> = ({ user, updateUser, posts, documents, s
                     <Card>
                         <h2 className="text-lg font-semibold mb-2">Liên hệ & Mạng xã hội</h2>
                          <div className="space-y-1">
-                            <InfoItem icon="Mail" label="Email" value={user.contact.email} href={`mailto:${user.contact.email}`} />
-                            <InfoItem icon="Phone" label="Số điện thoại" value={user.contact.phone} href={`tel:${user.contact.phone}`} />
-                            <InfoItem icon="Facebook" label="Facebook" value={user.socials.facebook ? user.name : undefined} href={user.socials.facebook} />
-                            <InfoItem icon="Github" label="GitHub" value={user.socials.github ? user.socials.github.replace('https://','') : undefined} href={user.socials.github} />
+                            <InfoItem icon="Mail" label="Email" value={user.email || user.contact?.email} href={`mailto:${user.email || user.contact?.email}`} />
+                            <InfoItem icon="Phone" label="Số điện thoại" value={user.phone || user.contact?.phone} href={user.phone ? `tel:${user.phone}` : undefined} />
+                            <InfoItem icon="Facebook" label="Facebook" value={user.facebookUrl || user.socials?.facebook ? user.name : undefined} href={user.facebookUrl || user.socials?.facebook} />
+                            <InfoItem icon="Github" label="GitHub" value={user.githubUrl || user.socials?.github ? (user.githubUrl || user.socials?.github || '').replace('https://','') : undefined} href={user.githubUrl || user.socials?.github} />
                         </div>
                     </Card>
                     <Card>
@@ -183,30 +255,66 @@ const Profile: React.FC<ProfileProps> = ({ user, updateUser, posts, documents, s
                          </div>
                     </Card>
                     <Card>
-                         <h2 className="text-lg font-semibold mb-4">Danh hiệu</h2>
-                        <div className="flex flex-wrap gap-4 justify-center">
-                            {user.badges.length > 0 ? user.badges.map(badge => (
-                                <BadgeIcon key={badge.id} badge={badge} />
-                            )) : <p className="text-sm text-gray-500 text-center w-full">Chưa có danh hiệu.</p>}
+                         <h2 className="text-lg font-semibold mb-4">🏆 Danh hiệu ({user.badges?.length || 0})</h2>
+                        <div className="space-y-3">
+                            {user.badges && user.badges.length > 0 ? user.badges.slice(0, 6).map(badge => {
+                                const IconComponent = Icons[badge.icon as keyof typeof Icons] || Icons.Award;
+                                return (
+                                    <div 
+                                        key={badge.id} 
+                                        className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
+                                    >
+                                        <div
+                                            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                                            style={{ backgroundColor: `${badge.color}20` }}
+                                        >
+                                            <IconComponent className="w-5 h-5" style={{ color: badge.color }} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">
+                                                {badge.name}
+                                            </div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                                {badge.description}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            }) : <p className="text-sm text-gray-500 text-center w-full py-4">Chưa có danh hiệu.</p>}
                         </div>
+                        {user.badges && user.badges.length > 6 && (
+                            <button 
+                                onClick={() => setActiveTab('achievements')}
+                                className="mt-3 text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 w-full text-center font-medium"
+                            >
+                                Xem tất cả ({user.badges.length}) →
+                            </button>
+                        )}
                     </Card>
                 </div>
                 <div className="lg:col-span-2">
                     <Card>
                         <div className="border-b border-gray-200 dark:border-gray-700">
-                            <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                                <button onClick={() => setActiveTab('posts')} className={cn('py-3 px-1 border-b-2 font-medium text-sm', activeTab === 'posts' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600')}>
+                            <nav className="-mb-px flex space-x-4 overflow-x-auto no-scrollbar" aria-label="Tabs">
+                                <button onClick={() => setActiveTab('posts')} className={cn('py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap', activeTab === 'posts' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600')}>
+                                    <Icons.FileText className="w-4 h-4 inline mr-1" />
                                     Bài đăng ({userPosts.length})
                                 </button>
-                                <button onClick={() => setActiveTab('documents')} className={cn('py-3 px-1 border-b-2 font-medium text-sm', activeTab === 'documents' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600')}>
+                                <button onClick={() => setActiveTab('documents')} className={cn('py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap', activeTab === 'documents' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600')}>
+                                    <Icons.FileText className="w-4 h-4 inline mr-1" />
                                     Tài liệu ({userDocs.length})
                                 </button>
-                                 <button onClick={() => setActiveTab('comments')} className={cn('py-3 px-1 border-b-2 font-medium text-sm', activeTab === 'comments' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600')}>
+                                <button onClick={() => setActiveTab('comments')} className={cn('py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap', activeTab === 'comments' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600')}>
+                                    <Icons.MessageSquare className="w-4 h-4 inline mr-1" />
                                     Bình luận ({userComments.length})
+                                </button>
+                                <button onClick={() => setActiveTab('achievements')} className={cn('py-3 px-2 border-b-2 font-medium text-sm whitespace-nowrap', activeTab === 'achievements' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600')}>
+                                    <Icons.Award className="w-4 h-4 inline mr-1" />
+                                    Thành tựu ({badges?.length || 0})
                                 </button>
                             </nav>
                         </div>
-                        <div className="mt-6 space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                        <div className="mt-6 space-y-4 max-h-[600px] overflow-y-auto pr-2">
                             {activeTab === 'posts' && (userPosts.length > 0 ? userPosts.map(post => (
                                 <div key={post.id} className="p-3 rounded-lg bg-gray-100 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-800 cursor-pointer">
                                     <p className="font-semibold text-sm">{post.title}</p>
@@ -225,6 +333,90 @@ const Profile: React.FC<ProfileProps> = ({ user, updateUser, posts, documents, s
                                     <p className="text-xs text-gray-500 mt-1">Trong bài viết "{comment.postTitle}" • {comment.timestamp}</p>
                                 </div>
                             )) : <EmptyState icon="MessageSquare" title="Chưa có bình luận nào" message="Tham gia thảo luận trong các bài viết để nhận điểm tích cực." action={{ text: 'Khám phá tin tức', onClick: () => setActivePage('Tin tức') }} />)}
+                            
+                            {activeTab === 'achievements' && (
+                                <div className="space-y-3">
+                                    {badges && badges.length > 0 ? badges.map(badge => {
+                                        const IconComponent = Icons[badge.icon as keyof typeof Icons] || Icons.Award;
+                                        const userHasBadge = user.badges?.some(b => b.id === badge.id);
+                                        
+                                        // Calculate points based on badge category
+                                        const categoryPoints = calculateCategoryPoints(
+                                            badge.category,
+                                            userPosts.length,
+                                            userDocs.length,
+                                            userComments.length
+                                        );
+                                        const progress = badge.requiredPoints ? Math.min(100, (categoryPoints / badge.requiredPoints) * 100) : 100;
+                                        
+                                        return (
+                                            <div key={badge.id} className={cn(
+                                                "p-3 rounded-lg border transition-all",
+                                                userHasBadge 
+                                                    ? "bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-yellow-300 dark:border-yellow-700" 
+                                                    : "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
+                                            )}>
+                                                <div className="flex items-start gap-3">
+                                                    <div className={cn(
+                                                        "w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-full",
+                                                        userHasBadge ? "bg-white dark:bg-gray-900" : "bg-white dark:bg-gray-900"
+                                                    )}>
+                                                        <IconComponent className={cn('w-7 h-7', badge.color)} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <h3 className="font-semibold text-sm">{badge.name}</h3>
+                                                            {userHasBadge && <Icons.Check className="w-5 h-5 text-green-500 flex-shrink-0" />}
+                                                        </div>
+                                                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">{badge.description}</p>
+                                                        
+                                                        {badge.requiredPoints && badge.requiredPoints > 0 ? (
+                                                            <div>
+                                                                <div className="flex items-center justify-between text-xs mb-1">
+                                                                    {progress >= 100 ? (
+                                                                        <span className="text-green-600 dark:text-green-400 font-semibold flex items-center gap-1">
+                                                                            <Icons.Check className="w-4 h-4" />
+                                                                            Đã hoàn thành!
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-gray-500">
+                                                                            {categoryPoints} / {badge.requiredPoints} điểm
+                                                                            {badge.category && badge.category !== 'all' && (
+                                                                                <span className="ml-1 text-blue-500">
+                                                                                    ({badge.category === 'posts' ? 'Bài viết' : badge.category === 'documents' ? 'Tài liệu' : 'Bình luận'})
+                                                                                </span>
+                                                                            )}
+                                                                        </span>
+                                                                    )}
+                                                                    <span className={cn(
+                                                                        "font-semibold",
+                                                                        progress >= 100 ? "text-green-600 dark:text-green-400" : "text-gray-600 dark:text-gray-400"
+                                                                    )}>
+                                                                        {Math.round(progress)}%
+                                                                    </span>
+                                                                </div>
+                                                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                                                                    <div 
+                                                                        className={cn(
+                                                                            "h-full rounded-full transition-all duration-500",
+                                                                            userHasBadge 
+                                                                                ? "bg-gradient-to-r from-green-400 to-green-600" 
+                                                                                : "bg-gradient-to-r from-blue-400 to-blue-600"
+                                                                        )}
+                                                                        style={{ width: `${progress}%` }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-xs text-gray-500 italic">Không yêu cầu điểm</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    }) : <p className="text-sm text-gray-500 text-center py-8">Chưa có thành tựu nào.</p>}
+                                </div>
+                            )}
                         </div>
                     </Card>
                 </div>
@@ -293,19 +485,19 @@ const Profile: React.FC<ProfileProps> = ({ user, updateUser, posts, documents, s
                         </div>
                          <div>
                             <label className="block text-sm font-medium mb-1">Email</label>
-                            <input name="contact.email" value={formData.contact.email} onChange={handleFormChange} type="email" className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <input name="email" value={formData.email || formData.contact?.email || ''} onChange={handleFormChange} type="email" className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         </div>
                          <div>
                             <label className="block text-sm font-medium mb-1">Số điện thoại</label>
-                            <input name="contact.phone" value={formData.contact.phone || ''} onChange={handleFormChange} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <input name="phone" value={formData.phone || formData.contact?.phone || ''} onChange={handleFormChange} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         </div>
                          <div>
                             <label className="block text-sm font-medium mb-1">Link Facebook</label>
-                            <input name="socials.facebook" value={formData.socials.facebook || ''} onChange={handleFormChange} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <input name="facebookUrl" value={formData.facebookUrl || formData.socials?.facebook || ''} onChange={handleFormChange} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         </div>
                          <div>
                             <label className="block text-sm font-medium mb-1">Link GitHub</label>
-                            <input name="socials.github" value={formData.socials.github || ''} onChange={handleFormChange} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <input name="githubUrl" value={formData.githubUrl || formData.socials?.github || ''} onChange={handleFormChange} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                         </div>
                     </div>
                      <div className="flex justify-end gap-2 pt-4 border-t dark:border-gray-700">

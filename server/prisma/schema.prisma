@@ -1,0 +1,474 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  Admin
+  LopTruong
+  LopPhoHocTap
+  LopPhoDoiSong
+  BiThu
+  PhoBiThu
+  UyVien
+  ThanhVien
+}
+
+enum DocumentType {
+  BaiGiang
+  De
+  GhiChu
+  Khac
+}
+
+enum DocumentStatus {
+  DaDuyet
+  ChoDuyet
+}
+
+enum MemoryStatus {
+  DaDuyet
+  ChoDuyet
+}
+
+enum ReportStatus {
+  Pending
+  Resolved
+}
+
+enum ReportReason {
+  Spam
+  NoiDungKhongPhuHop
+  QuayRoi
+  ThongTinSaiLech
+  Khac
+}
+
+enum BannerType {
+  Info
+  Warning
+  Critical
+}
+
+model User {
+  id                 Int     @id @default(autoincrement())
+  email              String  @unique
+  password           String?
+  name               String
+  avatar             String  @default("https://picsum.photos/seed/default/100")
+  coverImage         String  @default("https://picsum.photos/seed/cover/1000/300")
+  role               Role    @default(ThanhVien)
+  bio                String  @default("")
+  major              String  @default("")
+  birthday           String?
+  phone              String?
+  facebookUrl        String?
+  githubUrl          String?
+  points             Int     @default(0)
+  locked             Boolean @default(false)
+  mustChangePassword Boolean @default(false)
+
+  // OAuth
+  googleId   String? @unique
+  facebookId String? @unique
+
+  // Password Reset
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  posts             Post[]             @relation("PostAuthor")
+  comments          Comment[]
+  documents         Document[]
+  memories          Memory[]
+  chatMessages      ChatMessage[]
+  badges            UserBadge[]
+  reports           Report[]
+  postVotes         PostVote[]
+  pollVotes         PollVote[]
+  memoryReactions   MemoryReaction[]
+  attendances       Attendance[]
+  grades            Grade[]
+  eventsCreated     Event[]            @relation("EventCreator")
+  eventParticipants EventParticipant[]
+  chatRoomMembers   ChatRoomMember[]
+  notifications     Notification[]     @relation("UserNotifications")
+
+  @@map("users")
+}
+
+enum BadgeCategory {
+  all
+  posts
+  documents
+  comments
+}
+
+model Badge {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  icon          String
+  color         String
+  requiredPoints Int?    @default(0)
+  category       BadgeCategory? @default(all)
+  createdAt     DateTime @default(now())
+
+  users UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  userId    Int
+  badgeId   String
+  awardedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badgeId])
+  @@map("user_badges")
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  authorId  Int
+  title     String
+  content   String   @db.Text
+  category  String
+  imageUrl  String?
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author      User             @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+  votes       PostVote[]
+  poll        Poll?
+  attachments PostAttachment[]
+  reports     Report[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("posts")
+}
+
+model PostVote {
+  userId    Int
+  postId    Int
+  isUpvote  Boolean
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@map("post_votes")
+}
+
+model PostAttachment {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  name      String
+  url       String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("post_attachments")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  authorId  Int
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post    Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reports Report[]
+
+  @@index([postId])
+  @@index([authorId])
+  @@map("comments")
+}
+
+model Poll {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @unique
+  question  String
+  createdAt DateTime @default(now())
+
+  post    Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  options PollOption[]
+
+  @@map("polls")
+}
+
+model PollOption {
+  id     Int    @id @default(autoincrement())
+  pollId Int
+  text   String
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@map("poll_options")
+}
+
+model PollVote {
+  userId    Int
+  optionId  Int
+  createdAt DateTime @default(now())
+
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, optionId])
+  @@map("poll_votes")
+}
+
+model Document {
+  id         Int            @id @default(autoincrement())
+  title      String
+  uploaderId Int
+  subject    String
+  type       DocumentType
+  link       String
+  status     DocumentStatus @default(ChoDuyet)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  uploader User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  reports  Report[]
+
+  @@index([uploaderId])
+  @@index([status])
+  @@map("documents")
+}
+
+model Memory {
+  id         Int          @id @default(autoincrement())
+  url        String
+  thumbnail  String
+  semester   String
+  uploaderId Int
+  status     MemoryStatus @default(ChoDuyet)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  uploader  User             @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  reactions MemoryReaction[]
+
+  @@index([uploaderId])
+  @@index([status])
+  @@map("memories")
+}
+
+model MemoryReaction {
+  userId    Int
+  memoryId  Int
+  emoji     String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memory Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+
+  @@id([userId, memoryId, emoji])
+  @@map("memory_reactions")
+}
+
+model ChatRoom {
+  id          String   @id @default(cuid())
+  name        String
+  icon        String
+  description String
+  isPrivate   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  messages     ChatMessage[]
+  allowedRoles ChatRoomRole[]
+  members      ChatRoomMember[]
+
+  @@map("chat_rooms")
+}
+
+model ChatRoomRole {
+  roomId String
+  role   Role
+
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, role])
+  @@map("chat_room_roles")
+}
+
+model ChatRoomMember {
+  roomId   String
+  userId   Int
+  joinedAt DateTime @default(now())
+
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, userId])
+  @@map("chat_room_members")
+}
+
+model ChatMessage {
+  id        Int      @id @default(autoincrement())
+  roomId    String
+  senderId  Int
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([senderId])
+  @@map("chat_messages")
+}
+
+model Report {
+  id          Int          @id @default(autoincrement())
+  reporterId  Int
+  contentType String
+  contentId   Int
+  postId      Int?
+  commentId   Int?
+  documentId  Int?
+  reason      ReportReason
+  details     String?
+  status      ReportStatus @default(Pending)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  reporter User      @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  post     Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment  Comment?  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  document Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([status])
+  @@map("reports")
+}
+
+model Event {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?  @db.Text
+  startDate   DateTime
+  endDate     DateTime
+  location    String?
+  creatorId   Int
+  category    String   @default("general")
+  color       String   @default("#3B82F6")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator      User               @relation("EventCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  participants EventParticipant[]
+
+  @@index([creatorId])
+  @@index([startDate])
+  @@map("events")
+}
+
+model EventParticipant {
+  eventId   Int
+  userId    Int
+  status    String   @default("going") // going, maybe, not_going
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@map("event_participants")
+}
+
+model Attendance {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  eventId     Int?
+  date        DateTime  @default(now())
+  status      String // present, absent, late, excused
+  notes       String?
+  checkedInAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+  @@map("attendances")
+}
+
+model Grade {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  subject   String
+  semester  String
+  midterm   Float?
+  final     Float?
+  average   Float?
+  letter    String? // A, B+, B, C+, C, D+, D, F
+  credits   Int      @default(3)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([semester])
+  @@map("grades")
+}
+
+model WebsiteConfig {
+  id                Int        @id @default(1)
+  className         String     @default("Lớp CNTT K20")
+  slogan            String     @default("Cùng nhau học, cùng nhau lớn")
+  coverImage        String     @default("https://picsum.photos/seed/classbg/1200/400")
+  websiteName       String     @default("ClassZone")
+  websiteTitle      String     @default("ClassZone")
+  isMaintenanceMode Boolean    @default(false)
+  bannerText        String     @default("Chào mừng đến với năm học mới!")
+  bannerType        BannerType @default(Info)
+  bannerIsActive    Boolean    @default(false)
+  allowedPostRoles  Role[]     @default([Admin, LopTruong, BiThu])
+  postCategories    String[]   @default(["Thông báo chung", "Học tập", "Sự kiện", "Giải trí"])
+  updatedAt         DateTime   @updatedAt
+
+  @@map("website_config")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  text      String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
+}

@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: classzone-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: classzone
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - classzone-network
+
+  # Redis (Optional - for caching)
+  redis:
+    image: redis:7-alpine
+    container_name: classzone-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - classzone-network
+
+  # Backend API Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: classzone-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/classzone?schema=public
+      REDIS_URL: redis://redis:6379
+      CLIENT_URL: http://localhost:3000
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - classzone-network
+    volumes:
+      - ./server/.env:/app/.env
+
+  # Frontend Client (optional)
+  # client:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: classzone-client
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     VITE_API_URL: http://localhost:5000
+  #   depends_on:
+  #     - server
+  #   networks:
+  #     - classzone-network
+
+volumes:
+  postgres_data:
+
+networks:
+  classzone-network:
+    driver: bridge

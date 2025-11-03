@@ -107,6 +107,21 @@ const DocumentCard = React.memo<{ doc: DocType; uploader?: UserType; currentUser
     );
 });
 
+// Map display names to database enum values
+const typeDisplayToEnum: Record<string, string> = {
+    'Bài giảng': 'BaiGiang',
+    'Đề': 'De',
+    'Ghi chú': 'GhiChu',
+    'Khác': 'Khac'
+};
+
+const typeEnumToDisplay: Record<string, string> = {
+    'BaiGiang': 'Bài giảng',
+    'De': 'Đề',
+    'GhiChu': 'Ghi chú',
+    'Khac': 'Khác'
+};
+
 const initialDocState = { title: '', link: '', subject: 'Khác', type: 'Ghi chú' as DocType['type'] };
 
 const Documents: React.FC<DocumentsProps> = ({ documents, setDocuments, users, currentUser }) => {
@@ -126,7 +141,8 @@ const Documents: React.FC<DocumentsProps> = ({ documents, setDocuments, users, c
 
     const filteredDocuments = useMemo(() => {
         return documents.filter(doc => {
-            if (doc.status !== 'đã duyệt') return false;
+            // Accept both backend enum ('DaDuyet') and frontend display ('đã duyệt')
+            if (doc.status !== 'DaDuyet' && doc.status !== 'đã duyệt') return false;
             const searchMatch = doc.title.toLowerCase().includes(searchTerm.toLowerCase());
             const subjectMatch = activeFilters.subjects.length === 0 || activeFilters.subjects.includes(doc.subject);
             const typeMatch = activeFilters.types.length === 0 || activeFilters.types.includes(doc.type);
@@ -136,7 +152,12 @@ const Documents: React.FC<DocumentsProps> = ({ documents, setDocuments, users, c
 
     useEffect(() => {
         if (editingDoc) {
-            setDocFormData({ title: editingDoc.title, link: editingDoc.link, subject: editingDoc.subject, type: editingDoc.type });
+            setDocFormData({ 
+                title: editingDoc.title || '', 
+                link: editingDoc.link || '', 
+                subject: editingDoc.subject || 'Khác', 
+                type: editingDoc.type || 'Ghi chú' 
+            });
         } else {
             setDocFormData(initialDocState);
         }
@@ -166,41 +187,107 @@ const Documents: React.FC<DocumentsProps> = ({ documents, setDocuments, users, c
     const handleCloseModal = useCallback(() => {
         setModalOpen(false);
         setEditingDoc(null);
+        setDocFormData(initialDocState);
     }, []);
 
-    const handleSubmit = useCallback((e: React.FormEvent) => {
+    const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
-        const canBypassModeration = [Role.Admin, Role.LopTruong, Role.BiThu].includes(currentUser.role);
         
-        if (editingDoc) {
-            // Edit existing doc
-            setDocuments(docs => docs.map(d => d.id === editingDoc.id ? { ...d, ...docFormData } : d));
-            addToast({ title: 'Thành công!', message: 'Tài liệu đã được cập nhật.', type: 'success' });
-        } else {
-            // Add new doc
-            const newDoc: DocType = {
-                id: Date.now(),
-                uploaderId: currentUser.id,
-                timestamp: 'Vừa xong',
-                ...docFormData,
-                status: canBypassModeration ? 'đã duyệt' : 'chờ duyệt',
-            };
-            setDocuments(docs => [newDoc, ...docs]);
-            
-            if (canBypassModeration) {
-                addToast({ title: 'Thành công!', message: 'Tài liệu của bạn đã được đăng.', type: 'success' });
-            } else {
-                addToast({ title: 'Thành công!', message: 'Tài liệu của bạn đã được gửi và đang chờ duyệt.', type: 'info' });
+        try {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                addToast({ title: 'Lỗi!', message: 'Bạn cần đăng nhập lại', type: 'error' });
+                return;
             }
+
+            if (editingDoc) {
+                // Edit existing doc - TODO: implement edit API
+                setDocuments(docs => docs.map(d => d.id === editingDoc.id ? { ...d, ...docFormData } : d));
+                addToast({ title: 'Thành công!', message: 'Tài liệu đã được cập nhật.', type: 'success' });
+            } else {
+                // Upload new document with Google Drive link
+                if (!docFormData.link) {
+                    addToast({ title: 'Lỗi!', message: 'Vui lòng nhập link tài liệu', type: 'error' });
+                    return;
+                }
+
+                const response = await fetch('http://localhost:5000/api/documents', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: docFormData.title,
+                        link: docFormData.link,
+                        subject: docFormData.subject,
+                        type: typeDisplayToEnum[docFormData.type] || docFormData.type
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || errorData.error || 'Failed to save document');
+                }
+
+                const savedDoc = await response.json();
+                console.log('✅ Document saved:', savedDoc);
+                
+                // Fallback: Add to local state if socket broadcast doesn't arrive
+                setTimeout(() => {
+                    setDocuments(prev => {
+                        if (!prev.find(d => d.id === savedDoc.id)) {
+                            return [savedDoc, ...prev];
+                        }
+                        return prev;
+                    });
+                }, 100);
+
+                const canBypassModeration = [Role.Admin, Role.LopTruong, Role.BiThu].includes(currentUser.role);
+                
+                if (canBypassModeration) {
+                    addToast({ title: 'Thành công!', message: 'Tài liệu của bạn đã được đăng.', type: 'success' });
+                } else {
+                    addToast({ title: 'Thành công!', message: 'Tài liệu của bạn đã được gửi và đang chờ duyệt.', type: 'info' });
+                }
+            }
+            handleCloseModal();
+        } catch (error) {
+            console.error('❌ Failed to submit document:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Không thể tải lên tài liệu';
+            addToast({ title: 'Lỗi!', message: errorMessage, type: 'error' });
         }
-        handleCloseModal();
     }, [editingDoc, docFormData, currentUser, setDocuments, addToast, handleCloseModal]);
     
-    const handleConfirmDelete = useCallback(() => {
+    const handleConfirmDelete = useCallback(async () => {
         if (!deletingDoc) return;
-        setDocuments(docs => docs.filter(d => d.id !== deletingDoc.id));
-        addToast({ title: 'Đã xóa!', message: 'Tài liệu đã được xóa.', type: 'info' });
-        setDeletingDoc(null);
+        
+        try {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                addToast({ title: 'Lỗi!', message: 'Bạn cần đăng nhập lại', type: 'error' });
+                return;
+            }
+
+            const response = await fetch(`http://localhost:5000/api/documents/${deletingDoc.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete document');
+            }
+
+            // Optimistic update - remove from local state immediately
+            setDocuments(docs => docs.filter(d => d.id !== deletingDoc.id));
+            addToast({ title: 'Đã xóa!', message: 'Tài liệu đã được xóa.', type: 'info' });
+            setDeletingDoc(null);
+        } catch (error) {
+            console.error('❌ Failed to delete document:', error);
+            addToast({ title: 'Lỗi!', message: 'Không thể xóa tài liệu', type: 'error' });
+        }
     }, [deletingDoc, setDocuments, addToast]);
 
     const handleFilterChange = (filterType: 'subjects' | 'types', value: string) => {
@@ -304,14 +391,25 @@ const Documents: React.FC<DocumentsProps> = ({ documents, setDocuments, users, c
                         className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                     />
-                    <input
-                        type="url"
-                        placeholder="Link tài liệu (URL)"
-                        value={docFormData.link}
-                        onChange={(e) => setDocFormData(prev => ({...prev, link: e.target.value}))}
-                        className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                    />
+                    
+                    {/* Google Drive Link Input */}
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Link Google Drive
+                        </label>
+                        <input
+                            type="url"
+                            placeholder="https://drive.google.com/file/d/..."
+                            value={docFormData.link}
+                            onChange={(e) => setDocFormData(prev => ({...prev, link: e.target.value}))}
+                            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            💡 <strong>Hướng dẫn:</strong> Upload file lên Google Drive → Nhấp phải vào file → Chia sẻ → 
+                            Thay đổi quyền thành "Bất kỳ ai có link đều có thể xem" → Sao chép link → Dán vào đây
+                        </p>
+                    </div>
                     <input
                         type="text"
                         placeholder="Môn học (VD: Mạng Máy Tính)"

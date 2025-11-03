@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Icons } from '../components/icons';
-import { ROLE_COLORS, REPORT_REASONS } from '../constants';
+import { ROLE_COLORS, ROLE_NAMES, REPORT_REASONS } from '../constants';
 import { Post as PostType, User as UserType, Role, Comment, Poll, PollOption, WebsiteConfig, Report, ReportReason } from '../types';
 import { cn } from '../lib/utils';
 import { Modal } from '../components/ui/Modal';
@@ -34,7 +34,7 @@ const PostCard = React.memo<{
     onPin: () => void;
     onReport: () => void;
 }>(({ post, author, currentUser, onClick, onVote, hasUpvoted, hasDownvoted, onEdit, onDelete, onPin, onReport }) => {
-    const voteCount = post.upvotedBy.length - post.downvotedBy.length;
+    const voteCount = (post.upvotedBy?.length ?? 0) - (post.downvotedBy?.length ?? 0);
     const canManage = [Role.Admin, Role.LopTruong, Role.BiThu].includes(currentUser.role);
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -68,7 +68,7 @@ const PostCard = React.memo<{
                                 className="mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold text-white"
                                 style={{ backgroundColor: ROLE_COLORS[author.role].primary }}
                             >
-                                {author.role}
+                                {ROLE_NAMES[author.role] || author.role}
                             </span>
                         </div>
                     </div>
@@ -146,7 +146,7 @@ const PostCard = React.memo<{
                         <Icons.ArrowDownCircle className={cn("w-5 h-5 group-hover:text-red-500 transition-colors", hasDownvoted && "text-red-500 fill-red-500/20")} />
                     </Button>
                 </div>
-                <span>{post.comments.length} bình luận</span>
+                <span>{post.comments?.length ?? 0} bình luận</span>
             </div>
         </Card>
     );
@@ -201,8 +201,13 @@ const News: React.FC<NewsProps> = ({ posts, setPosts, users, currentUser, websit
     const [reportReason, setReportReason] = useState<ReportReason>(REPORT_REASONS[0]);
     const [reportDetails, setReportDetails] = useState('');
 
-
-    const categories = useMemo(() => ['Tất cả', ...new Set(posts.map(p => p.category))], [posts]);
+    // Get categories from config (admin-managed) or fallback to post categories
+    const categories = useMemo(() => {
+        const configCategories = websiteConfig?.postCategories || [];
+        const postCategories = [...new Set(posts.map(p => p.category))];
+        const allCategories = configCategories.length > 0 ? configCategories : postCategories;
+        return ['Tất cả', ...allCategories];
+    }, [posts, websiteConfig?.postCategories]);
 
     const filteredPosts = useMemo(() => {
         return posts
@@ -211,7 +216,11 @@ const News: React.FC<NewsProps> = ({ posts, setPosts, users, currentUser, websit
                 const categoryMatch = activeCategory === 'Tất cả' || post.category === activeCategory;
                 return searchMatch && categoryMatch;
             })
-            .sort((a, b) => (b.upvotedBy.length - b.downvotedBy.length) - (a.upvotedBy.length - a.downvotedBy.length));
+            .sort((a, b) => {
+                const aScore = (a.upvotedBy?.length ?? 0) - (a.downvotedBy?.length ?? 0);
+                const bScore = (b.upvotedBy?.length ?? 0) - (b.downvotedBy?.length ?? 0);
+                return bScore - aScore;
+            });
     }, [posts, searchTerm, activeCategory]);
 
     useEffect(() => {
@@ -241,28 +250,67 @@ const News: React.FC<NewsProps> = ({ posts, setPosts, users, currentUser, websit
         setModalOpen(true);
     }, []);
     
-    const handleReportSubmit = (e: React.FormEvent) => {
+    const handleReportSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!reportingContent) return;
 
-        const newReport: Report = {
-            id: Date.now(),
-            contentType: reportingContent.type,
-            contentId: reportingContent.id,
-            reporterId: currentUser.id,
-            reason: reportReason,
-            details: reportDetails,
-            timestamp: new Date().toLocaleString('vi-VN'),
-            status: 'pending',
-        };
-        setReports(prev => [...prev, newReport]);
-        addToast({ title: 'Đã gửi báo cáo', message: 'Cảm ơn bạn đã giúp cộng đồng tốt hơn.', type: 'success' });
-        setReportingContent(null);
-        setReportDetails('');
+        try {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                addToast({ title: 'Lỗi!', message: 'Bạn cần đăng nhập lại', type: 'error' });
+                return;
+            }
+
+            const reportData = {
+                contentType: reportingContent.type,
+                contentId: reportingContent.id,
+                postId: reportingContent.type === 'post' ? reportingContent.id : null,
+                commentId: reportingContent.type === 'comment' ? reportingContent.id : null,
+                documentId: null, // For now, only support post and comment reports
+                reason: reportReason,
+                details: reportDetails
+            };
+
+            const response = await fetch('http://localhost:5000/api/reports', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(reportData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create report');
+            }
+
+            const savedReport = await response.json();
+            console.log('✅ Report saved:', savedReport);
+
+            // Transform to frontend format
+            const newReport: Report = {
+                id: savedReport.id,
+                contentType: savedReport.contentType,
+                contentId: savedReport.contentId,
+                reporterId: savedReport.reporterId,
+                reason: savedReport.reason,
+                details: savedReport.details,
+                timestamp: new Date(savedReport.createdAt).toLocaleString('vi-VN'),
+                status: savedReport.status === 'Pending' ? 'pending' : 'resolved',
+            };
+
+            setReports(prev => [...prev, newReport]);
+            addToast({ title: 'Đã gửi báo cáo', message: 'Cảm ơn bạn đã giúp cộng đồng tốt hơn.', type: 'success' });
+            setReportingContent(null);
+            setReportDetails('');
+        } catch (error) {
+            console.error('❌ Failed to create report:', error);
+            addToast({ title: 'Lỗi!', message: 'Không thể gửi báo cáo', type: 'error' });
+        }
     };
 
 
-    const handleSavePost = useCallback((e: React.FormEvent) => {
+    const handleSavePost = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         if (!postFormData.title.trim() || !postFormData.content.trim()) return;
 
@@ -279,101 +327,273 @@ const News: React.FC<NewsProps> = ({ posts, setPosts, users, currentUser, websit
             } : undefined
         };
 
-        if (editingPost) {
-            setPosts(posts.map(p => p.id === editingPost.id ? { ...p, ...postDataToSave } : p));
-            addToast({ title: 'Thành công!', message: 'Bài viết đã được cập nhật.', type: 'success' });
-        } else {
-            const newPost: PostType = {
-                id: Date.now(),
-                authorId: currentUser.id,
-                ...postDataToSave,
-                upvotedBy: [],
-                downvotedBy: [],
-                timestamp: 'Vừa xong',
-                pinned: false,
-                comments: []
-            };
-            setPosts(currentPosts => [newPost, ...currentPosts]);
-            addToast({ title: 'Thành công!', message: '+20 điểm cho bài viết mới!', type: 'success' });
+        try {
+            const API_URL = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL 
+                ? import.meta.env.VITE_API_URL 
+                : 'http://localhost:5000/api';
+            
+            const token = localStorage.getItem('accessToken');
+
+            if (editingPost) {
+                // Update existing post
+                const response = await fetch(`${API_URL}/posts/${editingPost.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(postDataToSave)
+                });
+
+                if (response.ok) {
+                    const updatedPost = await response.json();
+                    setPosts(posts.map(p => p.id === editingPost.id ? updatedPost : p));
+                    addToast({ title: 'Thành công!', message: 'Bài viết đã được cập nhật.', type: 'success' });
+                } else {
+                    addToast({ title: 'Lỗi!', message: 'Không thể cập nhật bài viết.', type: 'error' });
+                }
+            } else {
+                // Create new post
+                if (!token) {
+                    addToast({ title: 'Lỗi!', message: 'Vui lòng đăng nhập lại.', type: 'error' });
+                    return;
+                }
+                
+                const response = await fetch(`${API_URL}/posts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(postDataToSave)
+                });
+
+                if (response.ok) {
+                    const newPost = await response.json();
+                    setPosts(currentPosts => [newPost, ...currentPosts]);
+                    addToast({ title: 'Thành công!', message: 'Bài viết mới đã được tạo.', type: 'success' });
+                } else if (response.status === 401) {
+                    addToast({ title: 'Lỗi!', message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', type: 'error' });
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Create post error:', response.status, errorData);
+                    addToast({ title: 'Lỗi!', message: errorData.message || 'Không thể tạo bài viết.', type: 'error' });
+                }
+            }
+            setModalOpen(false);
+        } catch (error) {
+            console.error('Error saving post:', error);
+            addToast({ title: 'Lỗi!', message: 'Không thể kết nối đến server.', type: 'error' });
         }
-        setModalOpen(false);
     }, [postFormData, editingPost, currentUser.id, posts, setPosts, addToast]);
     
-    const handleAddComment = useCallback((e: React.FormEvent) => {
+    const handleAddComment = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newComment.trim() || !selectedPost) return;
 
-        const comment: Comment = {
-            id: Date.now(),
-            postId: selectedPost.id,
-            authorId: currentUser.id,
-            content: newComment,
-            timestamp: 'Vừa xong',
-        };
-        
-        const updatedPosts = posts.map(p => {
-            if (p.id === selectedPost.id) {
-                return { ...p, comments: [...p.comments, comment] };
+        try {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                addToast({ title: 'Lỗi!', message: 'Bạn cần đăng nhập lại', type: 'error' });
+                return;
             }
-            return p;
-        });
 
-        setPosts(updatedPosts);
-        setSelectedPost(prev => prev ? { ...prev, comments: [...prev.comments, comment] } : null);
-        setNewComment('');
-        addToast({ title: 'Thành công!', message: '+5 điểm khi bình luận!', type: 'success' });
-    }, [newComment, selectedPost, currentUser.id, posts, setPosts, addToast]);
-
-    const handleVote = useCallback((postId: number, voteType: 'up' | 'down') => {
-        setPosts(prevPosts => {
-            const updatedPosts = prevPosts.map(post => {
-                if (post.id === postId) {
-                    const userId = currentUser.id;
-                    let newUpvotedBy = [...post.upvotedBy];
-                    let newDownvotedBy = [...post.downvotedBy];
-
-                    if (voteType === 'up') {
-                        if (newUpvotedBy.includes(userId)) {
-                            newUpvotedBy = newUpvotedBy.filter(id => id !== userId);
-                        } else {
-                            newUpvotedBy.push(userId);
-                            newDownvotedBy = newDownvotedBy.filter(id => id !== userId);
-                        }
-                    } else { // down
-                        if (newDownvotedBy.includes(userId)) {
-                            newDownvotedBy = newDownvotedBy.filter(id => id !== userId);
-                        } else {
-                            newDownvotedBy.push(userId);
-                            newUpvotedBy = newUpvotedBy.filter(id => id !== userId);
-                        }
-                    }
-                    return { ...post, upvotedBy: newUpvotedBy, downvotedBy: newDownvotedBy };
-                }
-                return post;
+            const response = await fetch(`http://localhost:5000/api/posts/${selectedPost.id}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ content: newComment })
             });
 
-            // Also update the selectedPost if it's the one being voted on
-            if (selectedPost && selectedPost.id === postId) {
-                const updatedPost = updatedPosts.find(p => p.id === postId);
-                if (updatedPost) setSelectedPost(updatedPost);
+            if (!response.ok) {
+                throw new Error('Failed to add comment');
             }
-            
-            return updatedPosts;
-        });
-        addToast({ title: 'Thành công!', message: 'Cảm ơn bạn đã bình chọn!', type: 'success' });
+
+            const savedComment = await response.json();
+            console.log('✅ Comment saved:', savedComment);
+
+            // Transform backend comment to frontend format
+            const comment: Comment = {
+                id: savedComment.id,
+                postId: selectedPost.id,
+                authorId: savedComment.authorId,
+                content: savedComment.content,
+                timestamp: new Date(savedComment.createdAt).toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Asia/Ho_Chi_Minh'
+                }),
+            };
+
+            const updatedPosts = posts.map(p => {
+                if (p.id === selectedPost.id) {
+                    return { ...p, comments: [...(p.comments || []), comment] };
+                }
+                return p;
+            });
+
+            setPosts(updatedPosts);
+            setSelectedPost(prev => prev ? { ...prev, comments: [...(prev.comments || []), comment] } : null);
+            setNewComment('');
+            addToast({ title: 'Thành công!', message: 'Đã lưu bình luận!', type: 'success' });
+        } catch (error) {
+            console.error('❌ Failed to add comment:', error);
+            addToast({ title: 'Lỗi!', message: 'Không thể lưu bình luận', type: 'error' });
+        }
+    }, [newComment, selectedPost, currentUser.id, posts, setPosts, addToast]);
+
+    const handleVote = useCallback(async (postId: number, voteType: 'up' | 'down') => {
+        try {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                addToast({ title: 'Lỗi!', message: 'Bạn cần đăng nhập lại', type: 'error' });
+                return;
+            }
+
+            const response = await fetch(`http://localhost:5000/api/posts/${postId}/vote`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ isUpvote: voteType === 'up' })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to vote');
+            }
+
+            console.log('✅ Vote saved');
+
+            // Update local state
+            setPosts(prevPosts => {
+                const updatedPosts = prevPosts.map(post => {
+                    if (post.id === postId) {
+                        const userId = currentUser.id;
+                        let newUpvotedBy = [...(post.upvotedBy || [])];
+                        let newDownvotedBy = [...(post.downvotedBy || [])];
+
+                        if (voteType === 'up') {
+                            if (newUpvotedBy.includes(userId)) {
+                                newUpvotedBy = newUpvotedBy.filter(id => id !== userId);
+                            } else {
+                                newUpvotedBy.push(userId);
+                                newDownvotedBy = newDownvotedBy.filter(id => id !== userId);
+                            }
+                        } else { // down
+                            if (newDownvotedBy.includes(userId)) {
+                                newDownvotedBy = newDownvotedBy.filter(id => id !== userId);
+                            } else {
+                                newDownvotedBy.push(userId);
+                                newUpvotedBy = newUpvotedBy.filter(id => id !== userId);
+                            }
+                        }
+                        return { ...post, upvotedBy: newUpvotedBy, downvotedBy: newDownvotedBy };
+                    }
+                    return post;
+                });
+
+                // Also update the selectedPost if it's the one being voted on
+                if (selectedPost && selectedPost.id === postId) {
+                    const updatedPost = updatedPosts.find(p => p.id === postId);
+                    if (updatedPost) setSelectedPost(updatedPost);
+                }
+                
+                return updatedPosts;
+            });
+            addToast({ title: 'Thành công!', message: 'Cảm ơn bạn đã bình chọn!', type: 'success' });
+        } catch (error) {
+            console.error('❌ Failed to vote:', error);
+            addToast({ title: 'Lỗi!', message: 'Không thể lưu bình chọn', type: 'error' });
+        }
     }, [currentUser.id, setPosts, selectedPost, addToast]);
     
-    const handlePin = useCallback((post: PostType) => {
-        setPosts(currentPosts => currentPosts.map(p => p.id === post.id ? { ...p, pinned: !p.pinned } : p));
-        addToast({ title: 'Thành công!', message: post.pinned ? 'Đã bỏ ghim bài viết.' : 'Đã ghim bài viết.', type: 'info' });
+    const handlePin = useCallback(async (post: PostType) => {
+        try {
+            const API_URL = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL 
+                ? import.meta.env.VITE_API_URL 
+                : 'http://localhost:5000/api';
+            
+            const token = localStorage.getItem('accessToken');
+            
+            if (!token) {
+                addToast({ title: 'Lỗi!', message: 'Vui lòng đăng nhập lại.', type: 'error' });
+                return;
+            }
+            
+            const response = await fetch(`${API_URL}/posts/${post.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    ...post,
+                    pinned: !post.pinned
+                })
+            });
+            
+            if (response.ok) {
+                const updatedPost = await response.json();
+                setPosts(currentPosts => currentPosts.map(p => p.id === post.id ? updatedPost : p));
+                addToast({ title: 'Thành công!', message: updatedPost.pinned ? 'Đã ghim bài viết.' : 'Đã bỏ ghim bài viết.', type: 'info' });
+            } else if (response.status === 401) {
+                addToast({ title: 'Lỗi!', message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', type: 'error' });
+            } else {
+                addToast({ title: 'Lỗi!', message: 'Không thể cập nhật bài viết.', type: 'error' });
+            }
+        } catch (error) {
+            console.error('Pin post error:', error);
+            addToast({ title: 'Lỗi!', message: 'Không thể ghim/bỏ ghim bài viết.', type: 'error' });
+        }
     }, [setPosts, addToast]);
 
-    const handleConfirmDelete = useCallback(() => {
+    const handleConfirmDelete = useCallback(async () => {
         if (!deletingPost) return;
-        setPosts(currentPosts => currentPosts.filter(p => p.id !== deletingPost.id));
-        addToast({ title: 'Đã xóa!', message: 'Bài viết đã được xóa.', type: 'info' });
-        setDeletingPost(null);
-    }, [deletingPost, setPosts, addToast]);
+        
+        try {
+            const API_URL = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL 
+                ? import.meta.env.VITE_API_URL 
+                : 'http://localhost:5000/api';
+            
+            const token = localStorage.getItem('accessToken');
+            
+            if (!token) {
+                addToast({ title: 'Lỗi!', message: 'Vui lòng đăng nhập lại.', type: 'error' });
+                return;
+            }
+            
+            const response = await fetch(`${API_URL}/posts/${deletingPost.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (response.ok) {
+                setPosts(currentPosts => currentPosts.filter(p => p.id !== deletingPost.id));
+                addToast({ title: 'Đã xóa!', message: 'Bài viết đã được xóa khỏi database.', type: 'info' });
+                setDeletingPost(null);
+                
+                // Close view modal if the deleted post is currently open
+                if (selectedPost?.id === deletingPost.id) {
+                    setViewModalOpen(false);
+                    setSelectedPost(null);
+                }
+            } else if (response.status === 401) {
+                addToast({ title: 'Lỗi!', message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', type: 'error' });
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Delete post error:', response.status, errorData);
+                addToast({ title: 'Lỗi!', message: errorData.message || 'Không thể xóa bài viết.', type: 'error' });
+            }
+        } catch (error) {
+            console.error('Delete post error:', error);
+            addToast({ title: 'Lỗi!', message: 'Không thể xóa bài viết. Vui lòng thử lại.', type: 'error' });
+        }
+    }, [deletingPost, selectedPost, setPosts, addToast]);
 
     const openPost = useCallback((post: PostType) => {
         setSelectedPost(post);
@@ -412,9 +632,30 @@ const News: React.FC<NewsProps> = ({ posts, setPosts, users, currentUser, websit
         addToast({ title: 'Thành công!', message: 'Cảm ơn bạn đã tham gia bình chọn.', type: 'success' });
     }, [currentUser.id, setPosts, selectedPost, addToast]);
 
-    const canPost = websiteConfig.allowedPostRoles.includes(currentUser.role);
-    const pinnedPosts = filteredPosts.filter(p => p.pinned);
-    const otherPosts = filteredPosts.filter(p => !p.pinned);
+    // Check if current user can post - default roles: Admin, LopTruong, BiThu
+    const canPost = useMemo(() => {
+        const allowedRoles = websiteConfig?.allowedPostRoles || [Role.Admin, Role.LopTruong, Role.BiThu];
+        const hasPermission = allowedRoles.includes(currentUser.role);
+        console.log('🔐 canPost check:', {
+            currentUserRole: currentUser.role,
+            allowedRoles,
+            hasPermission
+        });
+        return hasPermission;
+    }, [websiteConfig?.allowedPostRoles, currentUser.role]);
+    
+    // Remove duplicates by id before filtering
+    const uniqueFilteredPosts = useMemo(() => {
+        const seen = new Set<number>();
+        return filteredPosts.filter(p => {
+            if (seen.has(p.id)) return false;
+            seen.add(p.id);
+            return true;
+        });
+    }, [filteredPosts]);
+    
+    const pinnedPosts = uniqueFilteredPosts.filter(p => p.pinned);
+    const otherPosts = uniqueFilteredPosts.filter(p => !p.pinned);
     const postAuthor = selectedPost ? users.find(u => u.id === selectedPost.authorId) : null;
 
     // Poll form handlers
@@ -522,7 +763,7 @@ const News: React.FC<NewsProps> = ({ posts, setPosts, users, currentUser, websit
                     <div>
                         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><Icons.Pin className="w-5 h-5 text-yellow-500"/> Tin đã ghim</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {pinnedPosts.map(post => <PostCard key={post.id} post={post} currentUser={currentUser} author={users.find(u => u.id === post.authorId)} onClick={() => openPost(post)} onVote={(type) => handleVote(post.id, type)} hasUpvoted={post.upvotedBy.includes(currentUser.id)} hasDownvoted={post.downvotedBy.includes(currentUser.id)} onEdit={() => handleOpenEditModal(post)} onDelete={() => setDeletingPost(post)} onPin={() => handlePin(post)} onReport={() => setReportingContent({ type: 'post', id: post.id })} />)}
+                            {pinnedPosts.map(post => <PostCard key={post.id} post={post} currentUser={currentUser} author={users.find(u => u.id === post.authorId)} onClick={() => openPost(post)} onVote={(type) => handleVote(post.id, type)} hasUpvoted={post.upvotedBy?.includes(currentUser.id) ?? false} hasDownvoted={post.downvotedBy?.includes(currentUser.id) ?? false} onEdit={() => handleOpenEditModal(post)} onDelete={() => setDeletingPost(post)} onPin={() => handlePin(post)} onReport={() => setReportingContent({ type: 'post', id: post.id })} />)}
                         </div>
                     </div>
                 )}
@@ -530,7 +771,7 @@ const News: React.FC<NewsProps> = ({ posts, setPosts, users, currentUser, websit
                 <div>
                      <h2 className="text-xl font-semibold my-4">Bài viết gần đây</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {otherPosts.map(post => <PostCard key={post.id} post={post} currentUser={currentUser} author={users.find(u => u.id === post.authorId)} onClick={() => openPost(post)} onVote={(type) => handleVote(post.id, type)} hasUpvoted={post.upvotedBy.includes(currentUser.id)} hasDownvoted={post.downvotedBy.includes(currentUser.id)} onEdit={() => handleOpenEditModal(post)} onDelete={() => setDeletingPost(post)} onPin={() => handlePin(post)} onReport={() => setReportingContent({ type: 'post', id: post.id })} />)}
+                        {otherPosts.map(post => <PostCard key={post.id} post={post} currentUser={currentUser} author={users.find(u => u.id === post.authorId)} onClick={() => openPost(post)} onVote={(type) => handleVote(post.id, type)} hasUpvoted={post.upvotedBy?.includes(currentUser.id) ?? false} hasDownvoted={post.downvotedBy?.includes(currentUser.id) ?? false} onEdit={() => handleOpenEditModal(post)} onDelete={() => setDeletingPost(post)} onPin={() => handlePin(post)} onReport={() => setReportingContent({ type: 'post', id: post.id })} />)}
                     </div>
                 </div>
                 </>
@@ -540,9 +781,23 @@ const News: React.FC<NewsProps> = ({ posts, setPosts, users, currentUser, websit
             <Modal isOpen={isModalOpen} onClose={() => setModalOpen(false)} title={editingPost ? "Chỉnh sửa bài viết" : "Tạo bài viết mới"}>
                 <form onSubmit={handleSavePost} className="space-y-4">
                     <input type="text" placeholder="Tiêu đề" value={postFormData.title} onChange={(e) => setPostFormData(prev => ({...prev, title: e.target.value}))} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
-                    <select value={postFormData.category} onChange={(e) => setPostFormData(prev => ({...prev, category: e.target.value}))} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        {categories.filter(c => c !== 'Tất cả').map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    
+                    {/* Category Selection */}
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Danh mục</label>
+                        <select 
+                            value={postFormData.category} 
+                            onChange={(e) => setPostFormData(prev => ({...prev, category: e.target.value}))} 
+                            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        >
+                            {categories.filter(c => c !== 'Tất cả').map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">
+                            💡 Danh mục được quản lý bởi Admin trong phần Cài đặt
+                        </p>
+                    </div>
+                    
                     <input type="text" placeholder="Link ảnh minh họa (tùy chọn)" value={postFormData.imageUrl} onChange={(e) => setPostFormData(prev => ({...prev, imageUrl: e.target.value}))} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     <textarea placeholder="Nội dung" value={postFormData.content} onChange={(e) => setPostFormData(prev => ({...prev, content: e.target.value}))} rows={5} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
 
@@ -593,7 +848,7 @@ const News: React.FC<NewsProps> = ({ posts, setPosts, users, currentUser, websit
                                         className="mt-1 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold text-white"
                                         style={{ backgroundColor: ROLE_COLORS[postAuthor.role].primary }}
                                     >
-                                        {postAuthor.role}
+                                        {ROLE_NAMES[postAuthor.role] || postAuthor.role}
                                     </span>
                                 </div>
                             </div>
@@ -645,17 +900,17 @@ const News: React.FC<NewsProps> = ({ posts, setPosts, users, currentUser, websit
 
                         <div className="flex items-center gap-2 my-4 p-2 rounded-lg bg-gray-100 dark:bg-gray-800/50">
                             <Button variant="ghost" className="flex-1 group" onClick={() => handleVote(selectedPost.id, 'up')}>
-                                <Icons.ArrowUpCircle className={cn("w-5 h-5 mr-2 group-hover:text-green-500 transition-colors", selectedPost.upvotedBy.includes(currentUser.id) && "text-green-500 fill-green-500/20")} /> Tán thành
+                                <Icons.ArrowUpCircle className={cn("w-5 h-5 mr-2 group-hover:text-green-500 transition-colors", selectedPost.upvotedBy?.includes(currentUser.id) && "text-green-500 fill-green-500/20")} /> Tán thành
                             </Button>
-                            <span className="font-bold text-lg px-4">{selectedPost.upvotedBy.length - selectedPost.downvotedBy.length}</span>
+                            <span className="font-bold text-lg px-4">{(selectedPost.upvotedBy?.length ?? 0) - (selectedPost.downvotedBy?.length ?? 0)}</span>
                             <Button variant="ghost" className="flex-1 group" onClick={() => handleVote(selectedPost.id, 'down')}>
-                                <Icons.ArrowDownCircle className={cn("w-5 h-5 mr-2 group-hover:text-red-500 transition-colors", selectedPost.downvotedBy.includes(currentUser.id) && "text-red-500 fill-red-500/20")} /> Phản đối
+                                <Icons.ArrowDownCircle className={cn("w-5 h-5 mr-2 group-hover:text-red-500 transition-colors", selectedPost.downvotedBy?.includes(currentUser.id) && "text-red-500 fill-red-500/20")} /> Phản đối
                             </Button>
                         </div>
 
-                        <h4 className="font-semibold mb-4 border-t pt-4 dark:border-gray-700">Bình luận ({selectedPost.comments.length})</h4>
+                        <h4 className="font-semibold mb-4 border-t pt-4 dark:border-gray-700">Bình luận ({selectedPost.comments?.length ?? 0})</h4>
                         <div className="space-y-4 mb-6">
-                            {selectedPost.comments.map(comment => {
+                            {(selectedPost.comments || []).map(comment => {
                                 const commentAuthor = users.find(u => u.id === comment.authorId);
                                 return (
                                     <div key={comment.id} className="flex items-start gap-3 group">
@@ -669,7 +924,7 @@ const News: React.FC<NewsProps> = ({ posts, setPosts, users, currentUser, websit
                                                             className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold text-white"
                                                             style={{ backgroundColor: ROLE_COLORS[commentAuthor.role].primary }}
                                                         >
-                                                            {commentAuthor.role}
+                                                            {ROLE_NAMES[commentAuthor.role] || commentAuthor.role}
                                                         </span>
                                                     )}
                                                     <span className="text-xs text-gray-500">{comment.timestamp}</span>

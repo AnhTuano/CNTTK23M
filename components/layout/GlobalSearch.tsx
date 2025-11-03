@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Icons } from '../icons';
 import { Post, Document as Doc, User } from '../../types';
+import { ROLE_NAMES } from '../../constants';
 
 interface GlobalSearchProps {
   isOpen: boolean;
@@ -102,7 +103,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose, pos
                                      {searchResults.users.length > 0 && (
                                         <div>
                                             <h3 className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase">Thành viên</h3>
-                                            {searchResults.users.map(user => <SearchResultItem key={`user-${user.id}`} icon={<Icons.User className="w-5 h-5 text-purple-500"/>} title={user.name} subtitle={user.role} onClick={() => handleNavigation('Thành tích')} />)}
+                                            {searchResults.users.map(user => <SearchResultItem key={`user-${user.id}`} icon={<Icons.User className="w-5 h-5 text-purple-500"/>} title={user.name} subtitle={user.role ? (ROLE_NAMES[user.role] || user.role) : 'Thành viên'} onClick={() => handleNavigation('Thành tích')} />)}
                                         </div>
                                     )}
                                     {searchResults.posts.length === 0 && searchResults.documents.length === 0 && searchResults.users.length === 0 && (
