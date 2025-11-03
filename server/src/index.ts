@@ -65,7 +65,8 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.includes(origin)) {
+    // Allow all Vercel preview deployments
+    if (origin && (origin.includes('.vercel.app') || allowedOrigins.includes(origin))) {
       callback(null, true);
     } else {
       // console.log('CORS blocked origin:', origin);
